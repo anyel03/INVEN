@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'Inventario',
+    'Usuarios'
 ]
 
 MIDDLEWARE = [
@@ -54,10 +56,13 @@ ROOT_URLCONF = 'INVEN.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        #busque en la carpeta 'templates' de la raíz
+        'DIRS': [BASE_DIR / 'templates'],
+        # Esta opción DEBE estar en True para que busque los HTML dentro de cada app
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
