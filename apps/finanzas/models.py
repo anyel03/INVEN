@@ -26,7 +26,6 @@ class CajaRuta(models.Model):
     total_entregado = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     class Meta:
         db_table = 'caja_ruta'
-        unique_together = ['ruta', 'fecha']
 
 class Ingreso(models.Model):
     id = models.AutoField(primary_key=True)

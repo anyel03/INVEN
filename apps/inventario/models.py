@@ -17,7 +17,6 @@ class InventarioRuta(models.Model):
     cantidad = models.IntegerField()
     class Meta:
         db_table = 'inventario_ruta'
-        unique_together = ['ruta', 'producto']
 
 class TransferenciaInventario(models.Model):  
     id = models.AutoField(primary_key=True)
