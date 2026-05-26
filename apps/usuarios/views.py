@@ -5,11 +5,8 @@ from django.http import JsonResponse
 import hashlib
 from .models import Usuario
 
-
+#Login
 def login_view(request):
-    """
-    Vista de login - Autenticación custom con hash SHA256
-    """
     if request.session.get('user_id'):
         return redirect('dashboard')
 
@@ -37,7 +34,6 @@ def login_view(request):
             request.session['rol_id'] = usuario.rol.id
             request.session['rol_nombre'] = usuario.rol.nombre
 
-            messages.success(request, f'¡Bienvenido {usuario.nombre}!')
             return redirect('dashboard')
 
         except Usuario.DoesNotExist:
@@ -47,21 +43,14 @@ def login_view(request):
 
     return render(request, 'login.html')
 
-
+#logout
 def logout_view(request):
-    """
-    Cerrar sesión - Limpiar session
-    """
     user_name = request.session.get('user_name', 'Usuario')
     request.session.flush()
-    messages.success(request, f'Sesión cerrada. ¡Hasta luego {user_name}!')
     return redirect('login')
 
-
+#Dashboard principal
 def dashboard_view(request):
-    """
-    Dashboard principal - Requiere login
-    """
     if not request.session.get('user_id'):
         return redirect('login')
 
@@ -71,11 +60,8 @@ def dashboard_view(request):
     }
     return render(request, 'dashboard.html', context)
 
-
+#Verificacion sesion 
 def api_check_session(request):
-    """
-    API para verificar sesión (AJAX)
-    """
     user_id = request.session.get('user_id')
     if user_id:
         return JsonResponse({

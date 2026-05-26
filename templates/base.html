@@ -17,7 +17,6 @@
 </head>
 
 <body>
-    <!-- 🧠 NAVBAR SUPERIOR -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="{% url 'dashboard' %}">
@@ -83,7 +82,6 @@
         </div>
     </nav>
 
-    <!-- 📱 CONTENIDO PRINCIPAL -->
     <div class="container-fluid">
         <div class="row">
             {% if request.session.user_id %}
@@ -102,16 +100,8 @@
             </nav>
             {% endif %}
 
-            <!-- Contenido principal -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
-                {% if messages %}
-                    {% for message in messages %}
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
+                
                 
                 {% block content %}
                 {% endblock %}
@@ -119,7 +109,6 @@
         </div>
     </div>
 
-    <!-- 🦶 FOOTER -->
     <footer class="bg-dark text-light py-4 mt-5">
         <div class="container">
             <div class="row">
@@ -128,7 +117,7 @@
                     <p class="small">Gestión completa por rutas y vendedores</p>
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <p class="small mb-0">&copy; 2024 - Desarrollado con Django</p>
+                    <p class="small mb-0">&copy; 2026 - Desarrollado con Django</p>
                 </div>
             </div>
         </div>
