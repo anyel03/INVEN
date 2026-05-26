@@ -20,5 +20,8 @@ from apps.usuarios import views as usuario
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('',usuario.Home, name="Home")
+    path('', usuario.login_view, name='login'),
+    path('logout/', usuario.logout_view, name='logout'),
+    path('dashboard/', usuario.dashboard_view, name='dashboard'),
+    path('api/check-session/', usuario.api_check_session, name='api_check_session'),
 ]

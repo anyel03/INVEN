@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login - Sistema Inventario{% endblock %}
+
+{% block extra_css %}
+<style>
+    .login-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .login-card {
+        max-width: 400px;
+        width: 100%;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+    .brand-icon {
+        font-size: 4rem;
+    }
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card login-card bg-dark border-primary">
+                    <div class="card-body p-5">
+                        <!-- Logo / Icono -->
+                        <div class="text-center mb-4">
+                            <i class="bi bi-truck brand-icon text-primary"></i>
+                            <h3 class="mt-3 text-white">Sistema Inventario</h3>
+                            <p class="text-muted">Ingresa tus credenciales</p>
+                        </div>
+                        
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                        
+                        <form method="post" action="{% url 'login' %}">
+                            {% csrf_token %}
+                            
+                            <div class="mb-3">
+                                <label for="email" class="form-label text-white">
+                                    <i class="bi bi-envelope me-2"></i>Email
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-secondary">
+                                        <i class="bi bi-envelope"></i>
+                                    </span>
+                                    <input type="email" 
+                                           class="form-control bg-dark text-white border-secondary" 
+                                           id="email" 
+                                           name="email" 
+                                           placeholder="correo@empresa.com"
+                                           required
+                                           autocomplete="email">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="password" class="form-label text-white">
+                                    <i class="bi bi-key me-2"></i>Contraseña
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-secondary">
+                                        <i class="bi bi-key"></i>
+                                    </span>
+                                    <input type="password" 
+                                           class="form-control bg-dark text-white border-secondary" 
+                                           id="password" 
+                                           name="password" 
+                                           placeholder="••••••••"
+                                           required
+                                           autocomplete="current-password">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="remember">
+                                <label class="form-check-label text-white-50" for="remember">
+                                    Recordarme
+                                </label>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100 py-2">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>
+                                Iniciar Sesión
+                            </button>
+                        </form>
+                        
+                        <div class="text-center mt-4">
+                            <small class="text-muted">
+                                ¿Olvidaste tu contraseña?
+                                <a href="#" class="text-primary">Recuperar</a>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
