@@ -25,7 +25,6 @@ def login_view(request):
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
         try:
-            # Buscar usuario activo
             usuario = Usuario.objects.get(
                 email=email,
                 password=hashed_password,

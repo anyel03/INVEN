@@ -50,7 +50,7 @@
                             {% endfor %}
                         {% endif %}
                         
-                        <form method="post" action="{% url 'login' %}">
+                        <form method="post" action="{% url 'login' %}" class="mb-3">
                             {% csrf_token %}
                             
                             <div class="mb-3">
@@ -83,17 +83,10 @@
                                            class="form-control bg-dark text-white border-secondary" 
                                            id="password" 
                                            name="password" 
-                                           placeholder="••••••••"
+                                           placeholder="********"
                                            required
                                            autocomplete="current-password">
                                 </div>
-                            </div>
-                            
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="remember">
-                                <label class="form-check-label text-white-50" for="remember">
-                                    Recordarme
-                                </label>
                             </div>
                             
                             <button type="submit" class="btn btn-primary w-100 py-2">
@@ -101,13 +94,6 @@
                                 Iniciar Sesión
                             </button>
                         </form>
-                        
-                        <div class="text-center mt-4">
-                            <small class="text-muted">
-                                ¿Olvidaste tu contraseña?
-                                <a href="#" class="text-primary">Recuperar</a>
-                            </small>
-                        </div>
                     </div>
                 </div>
             </div>
