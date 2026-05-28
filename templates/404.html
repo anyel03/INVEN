@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>404 - Página no encontrada</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;900&display=swap');
+        
+        * { font-family: 'Poppins', sans-serif; }
+        
+        .error-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Animated background */
+        .error-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: grid 20s linear infinite;
+        }
+        
+        @keyframes grid {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        .error-code {
+            font-size: 10rem;
+            font-weight: 900;
+            line-height: 1;
+            background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 50px rgba(233, 69, 96, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        .error-icon {
+            font-size: 8rem;
+            animation:float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 3rem;
+        }
+        
+        .btn-glow {
+            background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+            border: none;
+            padding: 12px 40px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-glow:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(233, 69, 96, 0.4);
+        }
+        
+        .floating-items i {
+            position: absolute;
+            opacity: 0.1;
+            animation: drift 6s ease-in-out infinite;
+        }
+        
+        .floating-items i:nth-child(1) { top: 10%; left: 10%; font-size: 3rem; animation-delay: 0s; }
+        .floating-items i:nth-child(2) { top: 20%; right: 15%; font-size: 2rem; animation-delay: 1s; }
+        .floating-items i:nth-child(3) { bottom: 15%; left: 20%; font-size: 2.5rem; animation-delay: 2s; }
+        .floating-items i:nth-child(4) { bottom: 25%; right: 10%; font-size: 1.5rem; animation-delay: 3s; }
+        
+        @keyframes drift {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(10deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container position-relative">
+        <!-- Floating decorative items -->
+        <div class="floating-items">
+            <i class="bi bi-box-seam"></i>
+            <i class="bi bi-truck"></i>
+            <i class="bi bi-archive"></i>
+            <i class="bi bi-cart"></i>
+        </div>
+        
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="glass-card text-center">
+                        <!-- Animated icon -->
+                        <div class="mb-4">
+                            <i class="bi bi-exclamation-triangle-fill error-icon text-warning"></i>
+                        </div>
+                        
+                        <!-- Error code -->
+                        <h1 class="error-code">404</h1>
+                        
+                        <!-- Message -->
+                        <h2 class="text-white mt-4">¡Ups! Página no encontrada</h2>
+                        <p class="text-muted lead mt-3 mb-5">
+                            Lo sentimos, la página que buscas no existe o ha sido removida.
+                            <br>
+                            <small>Verifica la URL e intenta novamente.</small>
+                        </p>
+                        
+                        <!-- Actions -->
+                        <div class="d-flex gap-3 justify-content-center flex-wrap">
+                            {% if request.session.user_id %}
+                            <a href="{% url 'dashboard' %}" class="btn btn-glow btn-lg text-white">
+                                <i class="bi bi-house-door me-2"></i>Volver al Inicio
+                            </a>
+                            <a href="javascript:history.back()" class="btn btn-outline-light btn-lg">
+                                <i class="bi bi-arrow-left me-2"></i>Atrás
+                            </a>
+                            {% else %}
+                            <a href="{% url 'login' %}" class="btn btn-glow btn-lg text-white">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>Iniciar Sesión
+                            </a>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Decorative line -->
+                        <hr class="my-5 border-secondary">
+                        
+                        <!-- Quick links -->
+                        <div class="text-muted small">
+                            <p class="mb-2">¿Buscando algo?</p>
+                            <div class="d-flex gap-3 justify-content-center flex-wrap">
+                                <a href="/rutas/" class="text-decoration-none text-secondary">🚚 Rutas</a>
+                                <a href="/clientes/" class="text-decoration-none text-secondary">👥 Clientes</a>
+                                <a href="/inventario/" class="text-decoration-none text-secondary">📦 Inventario</a>
+                                <a href="/ventas/" class="text-decoration-none text-secondary">🛒 Ventas</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Footer -->
+                    <p class="text-center text-muted mt-4 small">
+                        <i class="bi bi-truck me-1"></i>
+                        Sistema de Inventario | 2024
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

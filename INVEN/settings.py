@@ -23,9 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-%_ux(i-r-o_(ki6%$@2!i24ac+73esiw(=n3l31fc3-jlu(6aq'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*'] 
 
 
 # Application definition
@@ -61,6 +61,7 @@ ROOT_URLCONF = 'INVEN.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        
         #busque en la carpeta 'templates' de la raíz
         'DIRS': [BASE_DIR / 'templates'],
         # Esta opción DEBE estar en True para que busque los HTML dentro de cada app

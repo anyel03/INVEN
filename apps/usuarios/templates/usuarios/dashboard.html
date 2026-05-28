@@ -1,0 +1,126 @@
+<!-- templates/usuarios/dashboard.html -->
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<!-- Bienvenida -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-speedometer2 me-2"></i>
+        Dashboard
+    </h1>
+    <span class="badge bg-{% if request.session.rol_nombre == 'ADMIN' %}danger{% else %}success{% endif %} fs-6">
+        {{ request.session.rol_nombre }}
+    </span>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-person-circle me-2"></i>
+    <strong>Bienvenido, {{ user }}</strong> - {% if request.session.rol_nombre == 'ADMIN' %}Tienes acceso total al sistema{% else %}Solo puedes registrar ventas y cobros{% endif %}
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div><h6 class="text-white-50">Rutas</h6><h2>5</h2></div>
+                    <i class="bi bi-geo-alt fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div><h6 class="text-white-50">Clientes</h6><h2>124</h2></div>
+                    <i class="bi bi-people fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div><h6 class="text-dark-50">Ventas Hoy</h6><h2>$8,500</h2></div>
+                    <i class="bi bi-cart fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div><h6 class="text-white-50">Por Cobrar</h6><h2>$12,000</h2></div>
+                    <i class="bi bi-cash-stack fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Acciones Rápidas -->
+<h4><i class="bi bi-lightning me-2"></i>Acciones Rápidas</h4>
+<div class="row mt-3">
+    {% if request.session.rol_nombre == 'ADMIN' %}
+    <div class="col-md-2">
+        <a href="/rutas/" class="btn btn-outline-primary w-100 py-3">
+            <i class="bi bi-geo-alt d-block fs-2"></i>
+            Rutas
+        </a>
+    </div>
+    <div class="col-md-2">
+        <a href="/clientes/" class="btn btn-outline-success w-100 py-3">
+            <i class="bi bi-people d-block fs-2"></i>
+            Clientes
+        </a>
+    </div>
+    <div class="col-md-2">
+        <a href="/inventario/" class="btn btn-outline-warning w-100 py-3">
+            <i class="bi bi-archive d-block fs-2"></i>
+            Inventario
+        </a>
+    </div>
+    <div class="col-md-2">
+        <a href="/ventas/" class="btn btn-outline-info w-100 py-3">
+            <i class="bi bi-cart d-block fs-2"></i>
+            Ventas
+        </a>
+    </div>
+    <div class="col-md-2">
+        <a href="/cobros/" class="btn btn-outline-secondary w-100 py-3">
+            <i class="bi bi-cash-stack d-block fs-2"></i>
+            Cobros
+        </a>
+    </div>
+    <div class="col-md-2">
+        <a href="/finanzas/" class="btn btn-outline-dark w-100 py-3">
+            <i class="bi bi-graph-up d-block fs-2"></i>
+            Finanzas
+        </a>
+    </div>
+    {% else %}
+    <!-- EMPLEADO: Solo ventas y cobros -->
+    <div class="col-md-4">
+        <a href="/ventas/nueva/" class="btn btn-primary w-100 py-4">
+            <i class="bi bi-cart-plus d-block fs-1"></i>
+            <h4>Nueva Venta</h4>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="/cobros/nuevo/" class="btn btn-success w-100 py-4">
+            <i class="bi bi-cash d-block fs-1"></i>
+            <h4>Registrar Cobro</h4>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
