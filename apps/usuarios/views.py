@@ -75,7 +75,7 @@ def dashboard_view(request):
     
     # El empleado solo puede vender y cobrar
     if es_empleado(request):
-        return render(request, 'usuarios/dashboard_empleado.html')
+        return render(request, 'usuarios/dashboard.html')
     
     return render(request, 'usuarios/dashboard.html')
 

@@ -25,6 +25,7 @@ urlpatterns = [
 
        # ==================== AUTH ====================
     path('', usuario.login_view, name='login'),
+    path('login/', usuario.login_view, name='login'),
     path('logout/', usuario.logout_view, name='logout'),
     path('dashboard/', usuario.dashboard_view, name='dashboard'),
     
