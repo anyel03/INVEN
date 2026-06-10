@@ -1,4 +1,4 @@
-# apps/usuarios/views.py
+# apps/usuarios/views.py - CORREGIDO
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 import hashlib
@@ -8,28 +8,27 @@ from .models import Usuario, Rol, Empleado
 from apps.rutas.models import Ruta
 
 
-# ==================== PERMISOS ====================
+# ==================== HELPERS ====================
 
 def es_admin(request):
     return request.session.get('rol_nombre') == 'ADMIN'
 
-def es_empleado(request):
-    return request.session.get('rol_nombre') == 'EMPLEADO'
 
-def requiere_admin(view_func):
+def requiere_login(view_func):
     def wrapper(request, *args, **kwargs):
         if not request.session.get('user_id'):
             return redirect('login')
-        if not es_admin(request):
-            messages.error(request, 'No tienes acceso a esta sección')
-            return redirect('dashboard')
         return view_func(request, *args, **kwargs)
     return wrapper
 
-def puede_acceder_a(view_func):
+
+def solo_admin(view_func):
     def wrapper(request, *args, **kwargs):
         if not request.session.get('user_id'):
             return redirect('login')
+        if request.session.get('rol_nombre') != 'ADMIN':
+            messages.error(request, 'No tienes acceso a esta sección')
+            return redirect('dashboard')
         return view_func(request, *args, **kwargs)
     return wrapper
 
@@ -37,6 +36,8 @@ def puede_acceder_a(view_func):
 # ==================== AUTH ====================
 
 def login_view(request):
+    """Vista de login"""
+    # Si YA está logueado, Ir al dashboard
     if request.session.get('user_id'):
         return redirect('dashboard')
     
@@ -60,34 +61,36 @@ def login_view(request):
             return redirect('dashboard')
         except Usuario.DoesNotExist:
             messages.error(request, 'Credenciales inválidas')
+            return render(request, 'usuarios/login.html')
     
     return render(request, 'usuarios/login.html')
 
 
 def logout_view(request):
+    """Cerrar sesión"""
     request.session.flush()
     return redirect('login')
 
 
+@requiere_login
 def dashboard_view(request):
-    if not request.session.get('user_id'):
-        return redirect('login')
-    
-    # El empleado solo puede vender y cobrar
-    if es_empleado(request):
-        return render(request, 'usuarios/dashboard.html')
-    
-    return render(request, 'usuarios/dashboard.html')
+    """Dashboard principal"""
+    context = {
+        'user': request.session.get('user_name'),
+        'rol': request.session.get('rol_nombre'),
+    }
+    return render(request, 'usuarios/dashboard.html', context)
 
 
-# ==================== ROLES - SOLO ADMIN ====================
+# ==================== ROLES ====================
 
-@requiere_admin
+@solo_admin
 def rol_list(request):
     roles = Rol.objects.all().order_by('nombre')
     return render(request, 'usuarios/roles/lista.html', {'roles': roles})
 
-@requiere_admin
+
+@solo_admin
 def rol_create(request):
     if request.method == 'POST':
         nombre = request.POST.get('nombre', '').strip()
@@ -97,7 +100,8 @@ def rol_create(request):
             return redirect('rol_list')
     return render(request, 'usuarios/roles/form.html', {'action': 'crear', 'rol': None})
 
-@requiere_admin
+
+@solo_admin
 def rol_edit(request, pk):
     rol = get_object_or_404(Rol, pk=pk)
     if request.method == 'POST':
@@ -107,12 +111,13 @@ def rol_edit(request, pk):
         return redirect('rol_list')
     return render(request, 'usuarios/roles/form.html', {'action': 'editar', 'rol': rol})
 
-@requiere_admin
+
+@solo_admin
 def rol_delete(request, pk):
     rol = get_object_or_404(Rol, pk=pk)
     if request.method == 'POST':
         if Usuario.objects.filter(rol=rol).exists():
-            messages.error(request, 'No se puede eliminar. Hay usuarios con este rol')
+            messages.error(request, 'No se puede eliminar')
         else:
             rol.delete()
             messages.success(request, 'Rol eliminado')
@@ -120,9 +125,9 @@ def rol_delete(request, pk):
     return render(request, 'usuarios/roles/delete.html', {'rol': rol})
 
 
-# ==================== USUARIOS - SOLO ADMIN ====================
+# ==================== USUARIOS ====================
 
-@requiere_admin
+@solo_admin
 def usuario_list(request):
     search = request.GET.get('search', '')
     usuarios = Usuario.objects.select_related('rol').order_by('nombre')
@@ -130,7 +135,8 @@ def usuario_list(request):
         usuarios = usuarios.filter(Q(nombre__icontains=search) | Q(email__icontains=search))
     return render(request, 'usuarios/usuarios/lista.html', {'usuarios': usuarios, 'roles': Rol.objects.all(), 'search': search})
 
-@requiere_admin
+
+@solo_admin
 def usuario_create(request):
     if request.method == 'POST':
         nombre = request.POST.get('nombre', '').strip()
@@ -147,14 +153,14 @@ def usuario_create(request):
         messages.error(request, 'Error al crear usuario')
     return render(request, 'usuarios/usuarios/form.html', {'action': 'crear', 'usuario': None, 'roles': Rol.objects.all()})
 
-@requiere_admin
+
+@solo_admin
 def usuario_edit(request, pk):
     usuario = get_object_or_404(Usuario, pk=pk)
     if request.method == 'POST':
         usuario.nombre = request.POST.get('nombre', '').strip()
         usuario.email = request.POST.get('email', '').strip().lower()
         usuario.rol_id = request.POST.get('rol_id', '')
-        usuario.activo = request.POST.get('activo') == 'on'
         password = request.POST.get('password', '')
         if password:
             usuario.password = hashlib.sha256(password.encode()).hexdigest()
@@ -163,9 +169,13 @@ def usuario_edit(request, pk):
         return redirect('usuario_list')
     return render(request, 'usuarios/usuarios/form.html', {'action': 'editar', 'usuario': usuario, 'roles': Rol.objects.all()})
 
-@requiere_admin
+
+@solo_admin
 def usuario_delete(request, pk):
     usuario = get_object_or_404(Usuario, pk=pk)
+    if usuario.id == request.session.get('user_id'):
+        messages.error(request, 'No puedes eliminarte a ti mismo')
+        return redirect('usuario_list')
     if request.method == 'POST':
         usuario.delete()
         messages.success(request, 'Usuario eliminado')
@@ -173,14 +183,15 @@ def usuario_delete(request, pk):
     return render(request, 'usuarios/usuarios/delete.html', {'usuario': usuario})
 
 
-# ==================== EMPLEADOS - SOLO ADMIN ====================
+# ==================== EMPLEADOS ====================
 
-@requiere_admin
+@solo_admin
 def empleado_list(request):
     empleados = Empleado.objects.select_related('usuario__rol', 'ruta').order_by('usuario__nombre')
     return render(request, 'usuarios/empleados/lista.html', {'empleados': empleados, 'rutas': Ruta.objects.all()})
 
-@requiere_admin
+
+@solo_admin
 def empleado_create(request):
     if request.method == 'POST':
         usuario_id = request.POST.get('usuario_id')
@@ -194,13 +205,10 @@ def empleado_create(request):
                 messages.success(request, 'Empleado creado')
                 return redirect('empleado_list')
         messages.error(request, 'Error al crear empleado')
-    return render(request, 'usuarios/empleados/form.html', {
-        'action': 'crear', 'empleado': None,
-        'usuarios': Usuario.objects.filter(activo=True, empleado__isnull=True),
-        'rutas': Ruta.objects.all()
-    })
+    return render(request, 'usuarios/empleados/form.html', {'action': 'crear', 'empleado': None, 'usuarios': Usuario.objects.filter(activo=True, empleado__isnull=True), 'rutas': Ruta.objects.all()})
 
-@requiere_admin
+
+@solo_admin
 def empleado_edit(request, pk):
     empleado = get_object_or_404(Empleado, pk=pk)
     if request.method == 'POST':
@@ -210,12 +218,10 @@ def empleado_edit(request, pk):
         empleado.save()
         messages.success(request, 'Empleado actualizado')
         return redirect('empleado_list')
-    return render(request, 'usuarios/empleados/form.html', {
-        'action': 'editar', 'empleado': empleado,
-        'usuarios': [empleado.usuario], 'rutas': Ruta.objects.all()
-    })
+    return render(request, 'usuarios/empleados/form.html', {'action': 'editar', 'empleado': empleado, 'usuarios': [empleado.usuario], 'rutas': Ruta.objects.all()})
 
-@requiere_admin
+
+@solo_admin
 def empleado_delete(request, pk):
     empleado = get_object_or_404(Empleado, pk=pk)
     if request.method == 'POST':

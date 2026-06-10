@@ -21,3 +21,4 @@ class DetalleVenta(models.Model):
     cantidad = models.IntegerField()
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     class Meta: db_table = 'detalle_ventas'
+

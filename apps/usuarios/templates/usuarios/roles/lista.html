@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Lista Roles{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
+    <h1><i class="bi bi-shield me-2"></i>Roles</h1>
+    <a href="{% url 'rol_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-2"></i>Nuevo Rol
+    </a>
+</div>
+
+<div class="card bg-dark border-secondary">
+    <div class="card-body p-0">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rol in roles %}
+                <tr>
+                    <td>{{ rol.id }}</td>
+                    <td><span class="badge bg-primary">{{ rol.nombre }}</span></td>
+                    <td>
+                        <a href="{% url 'rol_edit' rol.id %}" class="btn btn-sm btn-warning">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'rol_delete' rol.id %}" class="btn btn-sm btn-danger">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="text-center text-muted">No hay roles</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

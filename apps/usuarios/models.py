@@ -24,4 +24,4 @@ class Empleado(models.Model):
     direccion = models.TextField(blank=True)
     ruta = models.ForeignKey('rutas.Ruta', on_delete=models.SET_NULL, null=True, blank=True, db_column='ruta_id')
     class Meta: db_table = 'empleados'
-    
+

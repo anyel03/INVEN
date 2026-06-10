@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action|title }} Empleado{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card bg-dark border-primary">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-person-badge me-2"></i>{{ action|title }} Empleado</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% if action == 'crear' %}
+                    <div class="mb-3">
+                        <label class="form-label">Usuario</label>
+                        <select name="usuario_id" class="form-select bg-dark text-white border-secondary" required>
+                            <option value="">Seleccionar usuario</option>
+                            {% for u in usuarios %}
+                            <option value="{{ u.id }}">{{ u.nombre }} ({{ u.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <input type="text" name="telefono" class="form-control bg-dark text-white border-secondary" 
+                               value="{{ empleado.telefono|default:'' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <textarea name="direccion" class="form-control bg-dark text-white border-secondary" rows="2">
+{{ empleado.direccion|default:'' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ruta Asignada</label>
+                        <select name="ruta_id" class="form-select bg-dark text-white border-secondary">
+                            <option value="">Sin asignar</option>
+                            {% for ruta in rutas %}
+                            <option value="{{ ruta.id }}" {% if empleado.ruta_id == ruta.id %}selected{% endif %}>
+                                {{ ruta.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-2"></i>Guardar
+                        </button>
+                        <a href="{% url 'empleado_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Volver
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

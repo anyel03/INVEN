@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action|title }} Rol{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card bg-dark border-primary">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-shield me-2"></i>{{ action|title }} Rol</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del Rol</label>
+                        <input type="text" name="nombre" class="form-control bg-dark text-white border-secondary" 
+                               value="{{ rol.nombre|default:'' }}" required>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-2"></i>Guardar
+                        </button>
+                        <a href="{% url 'rol_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Volver
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
