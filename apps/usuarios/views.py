@@ -221,6 +221,7 @@ def empleado_edit(request, pk):
     return render(request, 'usuarios/empleados/form.html', {'action': 'editar', 'empleado': empleado, 'usuarios': [empleado.usuario], 'rutas': Ruta.objects.all()})
 
 
+
 @solo_admin
 def empleado_delete(request, pk):
     empleado = get_object_or_404(Empleado, pk=pk)
@@ -229,3 +230,4 @@ def empleado_delete(request, pk):
         messages.success(request, 'Empleado eliminado')
         return redirect('empleado_list')
     return render(request, 'usuarios/empleados/delete.html', {'empleado': empleado})
+    
