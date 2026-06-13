@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action|title }} Cliente{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card bg-dark border-primary">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-person-plus me-2"></i>{{ action|title }} Cliente</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Tipo de Documento</label>
+                            <select name="tipo_documento" class="form-select bg-dark text-white border-secondary">
+                                <option value="CEDULA" {% if cliente.tipo_documento == 'CEDULA' or action == 'crear' %}selected{% endif %}>Cédula</option>
+                                <option value="RUC" {% if cliente.tipo_documento == 'RUC' %}selected{% endif %}>RUC</option>
+                                <option value="PASAPORTE" {% if cliente.tipo_documento == 'PASAPORTE' %}selected{% endif %}>Pasaporte</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Número de Documento *</label>
+                            <input type="text" name="numero_documento" class="form-control bg-dark text-white border-secondary" 
+                                   value="{{ cliente.numero_documento|default:'' }}" 
+                                   {% if action == 'editar' %}readonly{% endif %}
+                                   required
+                                   placeholder="Sin guiones, ej: 12345678">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nombre Completo *</label>
+                        <input type="text" name="nombre" class="form-control bg-dark text-white border-secondary" 
+                               value="{{ cliente.nombre|default:'' }}" required
+                               placeholder="Nombre completo">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <input type="text" name="telefono" class="form-control bg-dark text-white border-secondary" 
+                               value="{{ cliente.telefono|default:'' }}"
+                               placeholder="Número de teléfono">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <textarea name="direccion" class="form-control bg-dark text-white border-secondary" rows="2"
+                        placeholder="Dirección">{{ cliente.direccion|default:'' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Ruta</label>
+                        <select name="ruta_id" class="form-select bg-dark text-white border-secondary">
+                            <option value="">Sin asignar</option>
+                            {% for ruta in rutas %}
+                            <option value="{{ ruta.id }}" {% if cliente.ruta_id == ruta.id %}selected{% endif %}>
+                                {{ ruta.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <hr class="border-secondary">
+                    
+                    <h5 class="mb-3"><i class="bi bi-camera me-2"></i>Foto del Documento</h5>
+                    
+                    {% if cliente.foto_documento %}
+                    <div class="mb-3 text-center">
+                        <img src="{{ cliente.foto_documento.url }}" class="img-thumbnail" style="max-height: 180px;">
+                        <p class="text-muted small">Foto actual</p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tomar foto o seleccionar</label>
+                        <input type="file" name="foto_documento" id="fotoInput" 
+                               class="form-control bg-dark text-white border-secondary" 
+                               accept="image/*" capture="environment">
+                        <small class="text-muted">📱 Toca para tomar foto con el celular</small>
+                    </div>
+                    
+                    <div class="mb-3 text-center" id="previewContainer" style="display: none;">
+                        <img id="previewImg" class="img-thumbnail" style="max-height: 180px;">
+                    </div>
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-2"></i>Guardar
+                        </button>
+                        <a href="{% url 'cliente_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Volver
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.getElementById('fotoInput').addEventListener('change', function(e) {
+    var file = e.target.files[0];
+    if (file) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('previewImg').src = e.target.result;
+            document.getElementById('previewContainer').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

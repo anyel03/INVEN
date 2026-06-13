@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Cliente{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card bg-dark border-danger">
+            <div class="card-header bg-danger">
+                <h4 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Eliminar Cliente</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead">¿Estás seguro de eliminar este cliente?</p>
+                
+                <div class="card bg-dark border-secondary mt-3">
+                    <div class="card-body">
+                        <p class="mb-1"><strong>Documento:</strong> {{ cliente.numero_documento }}</p>
+                        <p class="mb-1"><strong>Nombre:</strong> {{ cliente.nombre }}</p>
+                        <p class="mb-1"><strong>Teléfono:</strong> {{ cliente.telefono|default:'-' }}</p>
+                        <p class="mb-0"><strong>Ruta:</strong> {{ cliente.ruta.nombre|default:'Sin asignar' }}</p>
+                    </div>
+                </div>
+                
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-2"></i>Sí, Eliminar
+                        </button>
+                        <a href="{% url 'cliente_list' %}" class="btn btn-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
