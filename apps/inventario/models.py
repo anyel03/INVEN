@@ -22,7 +22,9 @@ class TransferenciaInventario(models.Model):
     id = models.AutoField(primary_key=True)
     fecha = models.DateTimeField(auto_now_add=True)
     ruta = models.ForeignKey('rutas.Ruta', on_delete=models.PROTECT, db_column='ruta_id')
-    class Meta: db_table = 'transferenciaInventario'  # ⭐ NUEVO NOMBRE
+    class Meta: 
+        db_table = 'transferenciaInventario' 
+        ordering = ['-fecha']
     def __str__(self): return f"Transferencia #{self.id}"
 
 class DetalleTransferencia(models.Model):

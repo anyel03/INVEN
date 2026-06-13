@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}Nueva Transferencia{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card bg-dark border-primary">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Nueva Transferencia</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" id="transferenciaForm">
+                    {% csrf_token %}
+                    
+                    <!-- Seleccionar Ruta -->
+                    <div class="mb-4">
+                        <label class="form-label">Ruta de Destino</label>
+                        <select name="ruta_id" class="form-select bg-dark text-white border-secondary" required>
+                            <option value="">Seleccionar ruta...</option>
+                            {% for ruta in rutas %}
+                            <option value="{{ ruta.id }}">{{ ruta.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Productos -->
+                    <div class="mb-3">
+                        <label class="form-label">Productos a Transferir</label>
+                        <div id="productos-container">
+                            {% for producto in productos %}
+                            <div class="card bg-dark border-secondary mb-2 p-3">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input producto-check" 
+                                                   id="prod_{{ producto.id }}" value="{{ producto.id }}">
+                                            <label class="form-check-label" for="prod_{{ producto.id }}">
+                                                <strong>{{ producto.nombre }}</strong>
+                                                <small class="text-muted ms-2">Stock: {{ producto.stock_principal }}</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="number" min="1" max="{{ producto.stock_principal }}" 
+                                               class="form-control bg-dark text-white border-secondary cantidad-input" 
+                                               name="cantidad[]" placeholder="Cantidad" disabled>
+                                        <input type="hidden" name="producto_id[]" value="{{ producto.id }}">
+                                    </div>
+                                    <div class="col-md-2 text-end">
+                                        <span class="text-muted">${{ producto.precio_venta }} c/u</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted">No hay productos con stock disponible</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-2"></i>Crear Transferencia
+                        </button>
+                        <a href="{% url 'producto_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Volver
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.producto-check').forEach(function(checkbox) {
+    checkbox.addEventListener('change', function() {
+        var cantidadInput = this.closest('.row').querySelector('.cantidad-input');
+        cantidadInput.disabled = !this.checked;
+        if (!this.checked) {
+            cantidadInput.value = '';
+        }
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Inventario - {{ ruta.nombre }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
+    <div>
+        <h1><i class="bi bi-geo-alt-fill me-2"></i>{{ ruta.nombre }}</h1>
+        <p class="text-muted mb-0">{{ ruta.descripcion|default:'Sin descripción' }}</p>
+    </div>
+    <a href="{% url 'inventario_ruta_list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Volver
+    </a>
+</div>
+
+<div class="card bg-dark border-secondary">
+    <div class="card-body p-0">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Precio Venta</th>
+                    <th>Cantidad</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in inventarios %}
+                <tr>
+                    <td>{{ inv.producto.nombre }}</td>
+                    <td>${{ inv.producto.precio_venta }}</td>
+                    <td><span class="badge bg-primary">{{ inv.cantidad }}</span></td>
+                    <td>${{ inv.producto.precio_venta|floatformat:2|multiply:inv.cantidad }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted">Sin productos en esta ruta</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

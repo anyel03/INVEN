@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Inventario por Rutas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
+    <h1><i class="bi bi-geo-alt-fill me-2"></i>Inventario por Rutas</h1>
+</div>
+
+<div class="row">
+    {% for ruta in rutas %}
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-primary h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-geo-alt fs-1 text-primary mb-3 d-block"></i>
+                <h5>{{ ruta.nombre }}</h5>
+                <p class="text-muted small">{{ ruta.descripcion|default:'Sin descripción' }}</p>
+                <a href="{% url 'inventario_ruta_detalle' ruta.id %}" class="btn btn-outline-primary">
+                    <i class="bi bi-eye me-2"></i>Ver Inventario
+                </a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <p class="text-muted text-center">No hay rutas registradas</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
