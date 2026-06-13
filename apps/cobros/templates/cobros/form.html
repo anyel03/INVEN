@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Nuevo Cobro{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card bg-dark border-success">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-cash me-2"></i>Registrar Cobro</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Venta *</label>
+                        <select name="venta_id" class="form-select bg-dark text-white border-secondary" required>
+                            <option value="">Seleccionar venta...</option>
+                            {% for v in ventas %}
+                            <option value="{{ v.venta.id }}">
+                                #{{ v.venta.id }} - {{ v.venta.cliente.nombre }} (Pendiente: ${{ v.pendiente }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Monto a Cobrar *</label>
+                        <input type="number" step="0.01" name="monto" class="form-control bg-dark text-white border-secondary" required min="0.01">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Método de Pago</label>
+                        <select name="metodo" class="form-select bg-dark text-white border-secondary">
+                            <option value="EFECTIVO">Efectivo</option>
+                            <option value="TRANSFERENCIA">Transferencia</option>
+                            <option value="YAPE">Yape</option>
+                            <option value="PLIN">Plin</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Observación</label>
+                        <textarea name="observacion" class="form-control bg-dark text-white border-secondary" rows="2" placeholder="Opcional..."></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-lg me-2"></i>Confirmar Cobro
+                        </button>
+                        <a href="{% url 'cobro_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

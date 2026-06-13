@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Caja por Rutas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
+    <h1><i class="bi bi-geo-alt me-2"></i>Caja por Rutas</h1>
+</div>
+
+<div class="row">
+    {% for caja in cajas %}
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark border-primary h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>{{ caja.ruta.nombre }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Fecha:</strong> {{ caja.fecha|date:"d/m/Y" }}</p>
+                <hr class="border-secondary">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h6 class="text-muted">Ventas</h6>
+                        <h5 class="text-primary">${{ caja.total_ventas }}</h5>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-muted">Cobros</h6>
+                        <h5 class="text-success">${{ caja.total_cobros }}</h5>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-muted">Entregado</h6>
+                        <h5 class="text-info">${{ caja.total_entregado }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body text-center">
+                <p class="text-muted mb-0">No hay cajas registradas</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

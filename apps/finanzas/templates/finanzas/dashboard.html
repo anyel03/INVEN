@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+
+{% block title %}Finanzas{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card { transition: transform 0.3s; }
+.stat-card:hover { transform: translateY(-5px); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom border-secondary">
+    <h1><i class="bi bi-graph-up me-2"></i>Finanzas</h1>
+    <div>
+        <a href="{% url 'compra_list' %}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-cart me-2"></i>Compras
+        </a>
+        <a href="{% url 'ingreso_list' %}" class="btn btn-outline-success me-2">
+            <i class="bi bi-plus-circle me-2"></i>Ingresos
+        </a>
+        <a href="{% url 'caja_ruta_list' %}" class="btn btn-outline-warning">
+            <i class="bi bi-geo-alt me-2"></i>Caja Rutas
+        </a>
+    </div>
+</div>
+
+<!-- VENTAS -->
+<h4 class="mb-3"><i class="bi bi-cart me-2"></i>Ventas</h4>
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card bg-success text-white h-100">
+            <div class="card-body">
+                <h6 class="text-white-50">Ventas Totales</h6>
+                <h2>${{ ventas_total }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card bg-primary text-white h-100">
+            <div class="card-body">
+                <h6 class="text-white-50">Contado</h6>
+                <h2>${{ ventas_contado }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card bg-warning text-dark h-100">
+            <div class="card-body">
+                <h6 class="text-dark-50">Crédito</h6>
+                <h2>${{ ventas_credito }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card bg-danger text-white h-100">
+            <div class="card-body">
+                <h6 class="text-white-50">Por Cobrar</h6>
+                <h2>${{ ventas_pendientes }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- COBROS -->
+<h4 class="mb-3"><i class="bi bi-cash-stack me-2"></i>Cobros</h4>
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-dark border-success">
+            <div class="card-body text-center">
+                <i class="bi bi-bank fs-2 text-success"></i>
+                <h5 class="mt-2">Efectivo</h5>
+                <h4 class="text-success">${{ cobros_efectivo }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-dark border-primary">
+            <div class="card-body text-center">
+                <i class="bi bi-bank fs-2 text-primary"></i>
+                <h5 class="mt-2">Transferencia</h5>
+                <h4 class="text-primary">${{ cobros_transferencia }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- COMPRAS E INGRESOS -->
+<h4 class="mb-3"><i class="bi bi-cart-dash me-2"></i>Compras e Ingresos</h4>
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-danger">
+            <div class="card-body text-center">
+                <i class="bi bi-cart-dash fs-2 text-danger"></i>
+                <h5 class="mt-2">Total Compras</h5>
+                <h3 class="text-danger">-${{ compras_total }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-info">
+            <div class="card-body text-center">
+                <i class="bi bi-plus-circle fs-2 text-info"></i>
+                <h5 class="mt-2">Otros Ingresos</h5>
+                <h3 class="text-info">+${{ ingresos_extra }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-{% if liquidez > 0 %}success{% else %}danger{% endif %}">
+            <div class="card-body text-center">
+                <i class="bi bi-wallet2 fs-2"></i>
+                <h5 class="mt-2">Liquidez</h5>
+                <h3 class="text-{% if liquidez > 0 %}success{% else %}danger{% endif %}">${{ liquidez }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CAJA RUTAS -->
+<h4 class="mb-3"><i class="bi bi-geo-alt me-2"></i>Caja por Rutas</h4>
+<div class="row mb-4">
+    {% for caja in caja_rutas %}
+    <div class="col-md-3 mb-3">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body">
+                <h5>{{ caja.ruta.nombre }}</h5>
+                <p class="mb-1">Ventas: ${{ caja.total_ventas }}</p>
+                <p class="mb-1">Cobros: ${{ caja.total_cobros }}</p>
+                <p class="mb-0 text-success">Entregado: ${{ caja.total_entregado }}</p>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <p class="text-muted text-center">No hay cajas registradas</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- GANANCIAS -->
+<h4 class="mb-3"><i class="bi bi-graph-up-arrow me-2"></i>Ganancias</h4>
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-primary">
+            <div class="card-body text-center">
+                <i class="bi bi-cart-plus fs-2 text-primary"></i>
+                <h5 class="mt-2">Ingresos</h5>
+                <h3 class="text-primary">${{ ingresos }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-danger">
+            <div class="card-body text-center">
+                <i class="bi bi-cart-dash fs-2 text-danger"></i>
+                <h5 class="mt-2">Costos</h5>
+                <h3 class="text-danger">${{ costos }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-success">
+            <div class="card-body text-center">
+                <i class="bi bi-graph-up fs-2 text-success"></i>
+                <h5 class="mt-2">Ganancia Neta</h5>
+                <h3 class="text-success">${{ ganancias }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- INVENTARIO -->
+<h4 class="mb-3"><i class="bi bi-archive me-2"></i>Inventario</h4>
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body text-center">
+                <i class="bi bi-box-seam fs-2 text-secondary"></i>
+                <h5 class="mt-2">Total Productos</h5>
+                <h3>{{ productos_total }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-danger">
+            <div class="card-body text-center">
+                <i class="bi bi-exclamation-triangle fs-2 text-danger"></i>
+                <h5 class="mt-2">Sin Stock</h5>
+                <h3 class="text-danger">{{ productos_sin_stock }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-warning">
+            <div class="card-body text-center">
+                <i class="bi bi-exclamation-triangle fs-2 text-warning"></i>
+                <h5 class="mt-2">Bajo Stock (&lt;5)</h5>
+                <h3 class="text-warning">{{ productos_bajo_stock }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
