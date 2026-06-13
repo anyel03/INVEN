@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Ventas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
+    <h1><i class="bi bi-cart me-2"></i>Ventas</h1>
+    <a href="{% url 'venta_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-2"></i>Nueva Venta
+    </a>
+</div>
+
+<!-- Filtros -->
+<div class="card bg-dark border-secondary mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <input type="text" name="search" class="form-control bg-dark text-white border-secondary" 
+                       placeholder="Buscar..." value="{{ search|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <select name="tipo" class="form-select bg-dark text-white border-secondary">
+                    <option value="">Todos los tipos</option>
+                    <option value="CONTADO">Contado</option>
+                    <option value="CREDITO">Crédito</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="estado" class="form-select bg-dark text-white border-secondary">
+                    <option value="">Todos los estados</option>
+                    <option value="PENDIENTE">Pendiente</option>
+                    <option value="PAGADA">Pagada</option>
+                    <option value="CANCELADA">Cancelada</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-primary w-100">Buscar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla -->
+<div class="card bg-dark border-secondary">
+    <div class="card-body p-0">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Tipo</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in ventas %}
+                <tr>
+                    <td>#{{ v.id }}</td>
+                    <td>{{ v.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>{{ v.cliente.nombre }}</td>
+                    <td><span class="badge bg-{% if v.tipo == 'CONTADO' %}success{% else %}warning{% endif %}">{{ v.tipo }}</span></td>
+                    <td>${{ v.total }}</td>
+                    <td><span class="badge bg-{% if v.estado == 'PAGADA' %}success{% elif v.estado == 'PENDIENTE' %}warning{% else %}danger{% endif %}">{{ v.estado }}</span></td>
+                    <td>
+                        <a href="{% url 'venta_detalle' v.id %}" class="btn btn-sm btn-info">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted">No hay ventas</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
