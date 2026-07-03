@@ -2,10 +2,14 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 import hashlib
-from django.db.models import Q
+from django.db.models import Q, Sum
+from django.utils import timezone
 
 from .models import Usuario, Rol, Empleado
 from apps.rutas.models import Ruta
+from apps.clientes.models import Cliente
+from apps.ventas.models import Venta
+from apps.cobros.models import Cobro
 
 
 # ==================== HELPERS ====================
@@ -75,10 +79,46 @@ def logout_view(request):
 @requiere_login
 def dashboard_view(request):
     """Dashboard principal"""
+    rol_nombre = request.session.get('rol_nombre')
+    now = timezone.localtime(timezone.now())
+    inicio_hoy = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    fin_hoy = inicio_hoy + timezone.timedelta(days=1)
+
+    # Métricas (desde BD)
+    rutas_count = Ruta.objects.count()
+    clientes_count = Cliente.objects.count()
+
+    ventas_hoy = Venta.objects.filter(created_at__gte=inicio_hoy, created_at__lt=fin_hoy).aggregate(
+        t=Sum('total')
+    ).get('t')
+    ventas_hoy = ventas_hoy if ventas_hoy is not None else 0
+
+    por_cobrar = Venta.objects.filter(estado='PENDIENTE').aggregate(t=Sum('total')).get('t')
+    por_cobrar = por_cobrar if por_cobrar is not None else 0
+
+    ultimas_ventas = (
+        Venta.objects.select_related('cliente')
+        .all()
+        .order_by('-created_at')[:5]
+    )
+
+    ultimos_cobros = (
+        Cobro.objects.select_related('venta__cliente')
+        .all()
+        .order_by('-created_at')[:5]
+    )
+
     context = {
         'user': request.session.get('user_name'),
-        'rol': request.session.get('rol_nombre'),
+        'rol': rol_nombre,
+        'rutas_count': rutas_count,
+        'clientes_count': clientes_count,
+        'ventas_hoy': ventas_hoy,
+        'por_cobrar': por_cobrar,
+        'ultimas_ventas': ultimas_ventas,
+        'ultimos_cobros': ultimos_cobros,
     }
+
     return render(request, 'usuarios/dashboard.html', context)
 
 
@@ -88,6 +128,9 @@ def dashboard_view(request):
 def rol_list(request):
     roles = Rol.objects.all().order_by('nombre')
     return render(request, 'usuarios/roles/lista.html', {'roles': roles})
+
+
+
 
 
 @solo_admin

@@ -44,7 +44,7 @@
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="text-white-50 mb-1">Rutas</h6>
-                    <h2 class="mb-0">5</h2>
+                    <h2 class="mb-0">{{ rutas_count }}</h2>
                     <small class="text-white-50">Activas</small>
                 </div>
                 <i class="bi bi-geo-alt fs-1 opacity-50"></i>
@@ -57,7 +57,7 @@
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="text-white-50 mb-1">Clientes</h6>
-                    <h2 class="mb-0">124</h2>
+                    <h2 class="mb-0">{{ clientes_count }}</h2>
                     <small class="text-white-50">Registrados</small>
                 </div>
                 <i class="bi bi-people fs-1 opacity-50"></i>
@@ -72,7 +72,7 @@
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="text-dark-50 mb-1">Ventas Hoy</h6>
-                    <h2 class="mb-0">$8,500</h2>
+                    <h2 class="mb-0">${{ ventas_hoy }}</h2>
                     <small class="text-dark-50">Realizadas</small>
                 </div>
                 <i class="bi bi-cart fs-1 opacity-50"></i>
@@ -86,7 +86,7 @@
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="text-white-50 mb-1">Por Cobrar</h6>
-                    <h2 class="mb-0">$12,000</h2>
+                    <h2 class="mb-0">${{ por_cobrar }}</h2>
                     <small class="text-white-50">Pendiente</small>
                 </div>
                 <i class="bi bi-cash-stack fs-1 opacity-50"></i>
@@ -196,21 +196,23 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% for v in ultimas_ventas %}
                         <tr>
-                            <td>Juan Pérez</td>
-                            <td>$1,500</td>
-                            <td><span class="badge bg-success">Contado</span></td>
+                            <td>{{ v.cliente.nombre }}</td>
+                            <td>${{ v.total }}</td>
+                            <td>
+                                {% if v.tipo == 'CONTADO' %}
+                                    <span class="badge bg-success">Contado</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Crédito</span>
+                                {% endif %}
+                            </td>
                         </tr>
+                        {% empty %}
                         <tr>
-                            <td>Maria García</td>
-                            <td>$800</td>
-                            <td><span class="badge bg-warning">Crédito</span></td>
+                            <td colspan="3" class="text-center text-muted">No hay ventas registradas</td>
                         </tr>
-                        <tr>
-                            <td>Carlos López</td>
-                            <td>$2,100</td>
-                            <td><span class="badge bg-success">Contado</span></td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -233,21 +235,17 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% for c in ultimos_cobros %}
                         <tr>
-                            <td>Ana Rodríguez</td>
-                            <td>$500</td>
-                            <td>Hoy</td>
+                            <td>{{ c.venta.cliente.nombre }}</td>
+                            <td>${{ c.monto }}</td>
+                            <td>{{ c.created_at|date:'Y-m-d' }}</td>
                         </tr>
+                        {% empty %}
                         <tr>
-                            <td>Pedro Martínez</td>
-                            <td>$300</td>
-                            <td>Hoy</td>
+                            <td colspan="3" class="text-center text-muted">No hay cobros registrados</td>
                         </tr>
-                        <tr>
-                            <td>Laura Díaz</td>
-                            <td>$750</td>
-                            <td>Ayer</td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
