@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle de Venta #{{ venta.id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
+    <h1 class="h3 mb-0"><i class="bi bi-receipt"></i> Detalle de Venta #{{ venta.id }}</h1>
+    <a href="{% url 'venta_list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Volver
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body">
+                <p class="mb-1"><strong>Cliente:</strong> {{ venta.cliente.nombre }}</p>
+                <p class="mb-1"><strong>Tipo:</strong> <span class="badge bg-{% if venta.tipo == 'CONTADO' %}success{% else %}warning{% endif %}">{{ venta.tipo }}</span></p>
+                <p class="mb-1"><strong>Estado:</strong> <span class="badge bg-{% if venta.estado == 'PAGADA' %}success{% elif venta.estado == 'PENDIENTE' %}warning{% else %}danger{% endif %}">{{ venta.estado }}</span></p>
+                {% if venta.created_at %}
+                    <p class="mb-1"><strong>Fecha:</strong> {{ venta.created_at|date:"d/m/Y H:i" }}</p>
+                {% endif %}
+                {% if venta.observaciones %}
+                    <p class="mb-0"><strong>Observaciones:</strong> {{ venta.observaciones }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body">
+                <p class="mb-1"><strong>Subtotal:</strong> ${{ venta.subtotal }}</p>
+                <p class="mb-1"><strong>Descuento:</strong> -${{ venta.descuento }}</p>
+                <p class="mb-0 h5 text-success"><strong>Total:</strong> ${{ venta.total }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card bg-dark border-secondary">
+    <div class="card-header text-white">
+        <i class="bi bi-list-check me-2"></i>Productos
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th class="text-end">Cantidad</th>
+                        <th class="text-end">Precio</th>
+                        <th class="text-end">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in detalles %}
+                    <tr>
+                        <td>{{ d.producto.nombre }}</td>
+                        <td class="text-end">{{ d.cantidad }}</td>
+                        <td class="text-end">${{ d.precio }}</td>
+                        <td class="text-end">${{ d.subtotal }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">No hay detalles para esta venta</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
