@@ -14,9 +14,10 @@ class InventarioRuta(models.Model):
     id = models.AutoField(primary_key=True)
     ruta = models.ForeignKey('rutas.Ruta', on_delete=models.CASCADE, db_column='ruta_id')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, db_column='producto_id')
-    cantidad = models.IntegerField()
+    cantidad = models.IntegerField(default=0)
     class Meta:
         db_table = 'inventario_ruta'
+
 
 class TransferenciaInventario(models.Model):  
     id = models.AutoField(primary_key=True)

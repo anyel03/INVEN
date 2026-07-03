@@ -173,9 +173,11 @@ def transferencia_create(request):
                     # Agregar a inventario de ruta
                     inv_ruta, _ = InventarioRuta.objects.get_or_create(
                         ruta_id=ruta_id,
-                        producto=producto
+                        producto=producto,
+                        defaults={'cantidad': 0}
                     )
                     inv_ruta.cantidad += cantidad
+
                     inv_ruta.save()
                 else:
                     productos_no_stock.append(producto.nombre)
