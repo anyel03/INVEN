@@ -133,6 +133,52 @@ def transferencia_list(request):
     return render(request, 'inventario/transferencias/lista.html', {'transferencias': transferencias})
 
 
+@requiere_login
+def transferencia_detalle(request, transferencia_id):
+    transferencia = get_object_or_404(TransferenciaInventario, pk=transferencia_id)
+    detalles = DetalleTransferencia.objects.filter(transferencia=transferencia).select_related('producto')
+    return render(request, 'inventario/transferencias/detalle.html', {
+        'transferencia': transferencia,
+        'detalles': detalles,
+    })
+
+
+@solo_admin
+def transferencia_delete(request, transferencia_id):
+    transferencia = get_object_or_404(TransferenciaInventario, pk=transferencia_id)
+
+    if request.method == 'POST':
+        with transaction.atomic():
+            # Revertir stock: devolver a stock_principal y restar de InventarioRuta (ruta destino)
+            detalles = list(DetalleTransferencia.objects.filter(transferencia=transferencia).select_related('producto'))
+            ruta_id = transferencia.ruta_id
+
+            for d in detalles:
+                producto = d.producto
+                cantidad = d.cantidad
+
+                # devolver al stock principal
+                producto.stock_principal += cantidad
+                producto.save()
+
+                # descontar de inventario de la ruta destino
+                inv_ruta = InventarioRuta.objects.select_for_update().get(ruta_id=ruta_id, producto=producto)
+                inv_ruta.cantidad -= cantidad
+                if inv_ruta.cantidad <= 0:
+                    inv_ruta.delete()
+                else:
+                    inv_ruta.save()
+
+            # eliminar la transferencia y sus detalles
+            transferencia.delete()
+
+        messages.success(request, f'Transferencia #{transferencia_id} eliminada correctamente')
+        return redirect('transferencia_list')
+
+    # Si fuera GET, redirige al detalle (este endpoint solo maneja POST)
+    return redirect('transferencia_detalle', transferencia_id=transferencia_id)
+
+
 @solo_admin
 def transferencia_create(request):
     """Crear transferencia"""

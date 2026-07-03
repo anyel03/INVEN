@@ -16,4 +16,6 @@ urlpatterns = [
     # Transferencias
     path('transferencias/', views.transferencia_list, name='transferencia_list'),
     path('transferencias/crear/', views.transferencia_create, name='transferencia_create'),
+    path('transferencias/<int:transferencia_id>/', views.transferencia_detalle, name='transferencia_detalle'),
+    path('transferencias/<int:transferencia_id>/eliminar/', views.transferencia_delete, name='transferencia_delete'),
 ]

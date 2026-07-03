@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle Transferencia #{{ transferencia.id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
+    <div>
+        <h1><i class="bi bi-arrow-left-right me-2"></i>Transferencia #{{ transferencia.id }}</h1>
+        <p class="text-muted mb-0">
+            Fecha: {{ transferencia.fecha|date:"d/m/Y H:i" }} • Ruta: {{ transferencia.ruta.nombre }}
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'transferencia_list' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Volver
+        </a>
+        <form method="post" action="{% url 'transferencia_delete' transferencia.id %}" onsubmit="return confirm('¿Eliminar esta transferencia y revertir el inventario?')">
+            {% csrf_token %}
+            <button class="btn btn-danger" type="submit">
+                <i class="bi bi-trash me-2"></i>Eliminar
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card bg-dark border-secondary">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio Venta</th>
+                        <th>Cantidad</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in detalles %}
+                    <tr>
+                        <td>{{ d.producto.nombre }}</td>
+                        <td>${{ d.producto.precio_venta }}</td>
+                        <td><span class="badge bg-primary">{{ d.cantidad }}</span></td>
+                        <td>${% widthratio d.producto.precio_venta 1 d.cantidad %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted">Sin productos</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

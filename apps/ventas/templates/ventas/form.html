@@ -136,4 +136,15 @@ function recalcular() {
         }
     });
     
-    var descuento = parseFloat(document.querySelector('[name="descuento"]').
+    var descuento = parseFloat(document.querySelector('[name="descuento"]').value) || 0;
+    document.getElementById('descuentoDisplay').textContent = descuento.toFixed(2);
+
+    var total = subtotal - descuento;
+    document.getElementById('totalDisplay').textContent = total.toFixed(2);
+}
+
+// Inicializar valores
+recalcular();
+</script>
+{% endblock %}
+{% endblock %}
