@@ -52,39 +52,38 @@ def venta_list(request):
 def venta_create(request):
     """Crear nueva venta"""
 
+    def _get_ruta_id_para_usuario():
+        # ADMIN: usar ruta seleccionada desde el formulario
+        if request.session.get('rol_nombre') == 'ADMIN':
+            return request.POST.get('ruta_id') or None
+
+        # NO ADMIN: SIEMPRE usar la ruta del empleado
+        from apps.usuarios.models import Empleado
+        empleado = Empleado.objects.filter(usuario_id=request.session['user_id']).select_related('ruta').first()
+        ruta_id_local = getattr(empleado, 'ruta_id', None) if empleado else None
+        if not ruta_id_local:
+            messages.error(request, 'Tu empleado no tiene una ruta asignada')
+            return None
+        return ruta_id_local
+
+
     if request.method == 'POST':
         cliente_id = request.POST.get('cliente_id')
         tipo = request.POST.get('tipo', 'CONTADO')
         descuento = Decimal(request.POST.get('descuento', '0') or '0')
         observaciones = request.POST.get('observaciones', '').strip()
-        
+
         producto_ids = request.POST.getlist('producto_id[]')
         cantidades = request.POST.getlist('cantidad[]')
-
-        # Normaliza longitudes: a veces el navegador puede no enviar cantidades alineadas.
-        # Si hay mismatch, el loop de pares_validos ya protege con IndexError.
-
-
 
         if not cliente_id:
             messages.error(request, 'Selecciona un cliente')
             return redirect('venta_create')
 
-        # Validación robusta: en la UI puedes tener cantidades en 0, o incluso que no lleguen.
-        # Filtramos pares válidos (producto_id + cantidad > 0).
         if not producto_ids:
             messages.error(request, 'Agrega al menos un producto')
             return redirect('venta_create')
 
-        # No bloqueamos por desalineación estricta de longitudes,
-        # porque el browser puede mandar longitudes distintas según el submit,
-        # y el backend ya protege tomando cantidades por índice.
-
-
-
-        # Construir pares (producto_id, cantidad)
-        # En el POST real, es posible que 'cantidad[]' no llegue con la misma longitud.
-        # Por seguridad, tomamos cantidad por índice y si no existe, asumimos 0.
         pares_validos = []
         for i, prod_id in enumerate(producto_ids):
             try:
@@ -107,25 +106,9 @@ def venta_create(request):
             messages.error(request, 'Agrega al menos un producto')
             return redirect('venta_create')
 
-        cliente = Cliente.objects.get(pk=cliente_id)
-
-        # Regla de negocio:
-        # - Si el usuario es administrador, permite usar cualquier ruta.
-        # - Si NO es administrador, usa la ruta del empleado (empleado.ruta) o la del cliente.
-        ruta_seleccionada = request.POST.get('ruta_id') or None
-
-        if request.session.get('es_admin'):
-            ruta_id = ruta_seleccionada
-        else:
-            try:
-                from apps.usuarios.models import Empleado
-                empleado = Empleado.objects.get(usuario_id=request.session['user_id'])
-                ruta_id = getattr(empleado, 'ruta_id', None) or None
-            except:
-                ruta_id = None
-
-            if not ruta_id:
-                ruta_id = cliente.ruta_id if cliente.ruta_id else None
+        ruta_id = _get_ruta_id_para_usuario()
+        if request.session.get('rol_nombre') != 'ADMIN' and ruta_id is None:
+            return redirect('venta_create')
 
 
         total = Decimal('0')
@@ -135,11 +118,8 @@ def venta_create(request):
             producto = Producto.objects.get(pk=prod_id)
 
             if ruta_id:
-                try:
-                    inv_ruta = InventarioRuta.objects.get(ruta_id=ruta_id, producto_id=prod_id)
-                    stock = inv_ruta.cantidad
-                except:
-                    stock = 0
+                inv_ruta = InventarioRuta.objects.filter(ruta_id=ruta_id, producto_id=prod_id).first()
+                stock = inv_ruta.cantidad if inv_ruta else 0
             else:
                 stock = 0
 
@@ -186,28 +166,24 @@ def venta_create(request):
                 )
 
                 if ruta_id:
-                    try:
-                        inv_ruta = InventarioRuta.objects.get(ruta_id=ruta_id, producto_id=det['producto'].id)
-                        inv_ruta.cantidad -= det['cantidad']
+                    inv_ruta = InventarioRuta.objects.select_for_update().get(ruta_id=ruta_id, producto_id=det['producto'].id)
+                    inv_ruta.cantidad -= det['cantidad']
+                    if inv_ruta.cantidad <= 0:
+                        inv_ruta.delete()
+                    else:
                         inv_ruta.save()
-                    except:
-                        pass
-
-                det['producto'].stock_principal -= det['cantidad']
-                det['producto'].save()
 
         messages.success(request, f'Venta #{venta.id} creada correctamente')
         return redirect('venta_list')
 
     clientes = Cliente.objects.all().order_by('nombre')
 
-    # Productos disponibles:
-    # - Admin: muestra por stock_principal (puede elegir ruta en el formulario)
-    # - Empleado: muestra productos que tengan InventarioRuta en su ruta con stock > 0
-    if request.session.get('es_admin'):
+    if request.session.get('rol_nombre') == 'ADMIN':
         productos = Producto.objects.filter(stock_principal__gt=0).order_by('nombre')
     else:
+
         try:
+
             from apps.usuarios.models import Empleado
             empleado = Empleado.objects.get(usuario_id=request.session['user_id'])
             ruta_emp = getattr(empleado, 'ruta_id', None)
@@ -228,23 +204,39 @@ def venta_create(request):
 
     rutas = Ruta.objects.all()
 
+    es_admin = request.session.get('rol_nombre') == 'ADMIN'
 
-    es_admin = bool(request.session.get('es_admin'))
+    stock_por_producto = {}
+
+    if not es_admin:
+
+        try:
+            from apps.usuarios.models import Empleado
+            empleado = Empleado.objects.get(usuario_id=request.session['user_id'])
+            ruta_emp_id = getattr(empleado, 'ruta_id', None)
+        except:
+            ruta_emp_id = None
+
+        if ruta_emp_id:
+            qs = InventarioRuta.objects.filter(ruta_id=ruta_emp_id).values_list('producto_id', 'cantidad')
+            stock_por_producto = {pid: cant for (pid, cant) in qs}
 
     return render(request, 'ventas/form.html', {
         'clientes': clientes,
         'productos': productos,
         'rutas': rutas,
         'es_admin': es_admin,
+        'stock_por_producto': stock_por_producto,
     })
 
 
-@requiere_login
 
+@requiere_login
 def venta_create_con_cliente(request):
     """Nueva venta permitiendo crear cliente en la misma vista"""
     if request.method == 'POST':
         form_type = request.POST.get('form_type')
+
 
         # ================= CREAR CLIENTE =================
         if form_type == 'cliente':
@@ -282,14 +274,28 @@ def venta_create_con_cliente(request):
             productos = Producto.objects.filter(stock_principal__gt=0).order_by('nombre')
             rutas = Ruta.objects.all()
 
+            # Dict de stock por producto para mostrar en el template.
+            stock_por_producto = {}
+            try:
+                from apps.usuarios.models import Empleado
+                empleado = Empleado.objects.get(usuario_id=request.session['user_id'])
+                ruta_emp_id = getattr(empleado, 'ruta_id', None)
+            except:
+                ruta_emp_id = None
+
+            if ruta_emp_id:
+                qs = InventarioRuta.objects.filter(ruta_id=ruta_emp_id).values_list('producto_id', 'cantidad')
+                stock_por_producto = {pid: cant for (pid, cant) in qs}
+
             return render(request, 'ventas/form_cliente_venta.html', {
                 'clientes': clientes,
                 'productos': productos,
-                'rutas': rutas
+                'rutas': rutas,
+                'stock_por_producto': stock_por_producto,
             })
 
         # ================= CREAR VENTA (igual lógica) =================
-        cliente_id = request.POST.get('cliente_id')
+
         tipo = request.POST.get('tipo', 'CONTADO')
         descuento = Decimal(request.POST.get('descuento', '0') or '0')
         observaciones = request.POST.get('observaciones', '').strip()
@@ -305,8 +311,17 @@ def venta_create_con_cliente(request):
             messages.error(request, 'Agrega al menos un producto')
             return redirect('venta_create_con_cliente')
 
-        cliente = Cliente.objects.get(pk=cliente_id)
-        ruta_id = cliente.ruta_id if cliente.ruta_id else None
+        # Para NO ADMIN SIEMPRE usar la ruta del empleado
+        if request.session.get('rol_nombre') == 'ADMIN':
+            ruta_id = request.POST.get('ruta_id') or None
+        else:
+            from apps.usuarios.models import Empleado
+            empleado = Empleado.objects.filter(usuario_id=request.session['user_id']).select_related('ruta').first()
+            ruta_id = getattr(empleado, 'ruta_id', None) if empleado else None
+            if not ruta_id:
+                messages.error(request, 'Tu empleado no tiene una ruta asignada')
+                return redirect('venta_create_con_cliente')
+
 
         total = Decimal('0')
         detalles = []
@@ -375,21 +390,42 @@ def venta_create_con_cliente(request):
                     except:
                         pass
 
-                    det['producto'].stock_principal -= det['cantidad']
-                    det['producto'].save()
-
         messages.success(request, f'Venta #{venta.id} creada correctamente')
         return redirect('venta_list')
 
-    clientes = Cliente.objects.all().order_by('nombre')
-    productos = Producto.objects.filter(stock_principal__gt=0).order_by('nombre')
-    rutas = Ruta.objects.all()
+    # Dict de stock por producto para mostrar en el template.
+
+    stock_por_producto = {}
+
+    # Si es ADMIN, el stock del template debe respetar la ruta seleccionada.
+    # Para que sea dinámico en UI, el stock se recarga al cambiar la ruta (GET con querystring).
+    if request.session.get('rol_nombre') == 'ADMIN':
+        ruta_admin_id = request.POST.get('ruta_id') or request.GET.get('ruta_id') or None
+        if ruta_admin_id:
+            qs = InventarioRuta.objects.filter(ruta_id=ruta_admin_id).values_list('producto_id', 'cantidad')
+            stock_por_producto = {pid: cant for (pid, cant) in qs}
+
+    else:
+        try:
+            from apps.usuarios.models import Empleado
+            empleado = Empleado.objects.get(usuario_id=request.session['user_id'])
+            ruta_emp_id = getattr(empleado, 'ruta_id', None)
+        except:
+            ruta_emp_id = None
+
+        if ruta_emp_id:
+            qs = InventarioRuta.objects.filter(ruta_id=ruta_emp_id).values_list('producto_id', 'cantidad')
+            stock_por_producto = {pid: cant for (pid, cant) in qs}
+
 
     return render(request, 'ventas/form_cliente_venta.html', {
         'clientes': clientes,
         'productos': productos,
-        'rutas': rutas
+        'rutas': rutas,
+        'es_admin': request.session.get('rol_nombre') == 'ADMIN',
+        'stock_por_producto': stock_por_producto,
     })
+
 
 
 @requiere_login
@@ -398,3 +434,27 @@ def venta_detalle(request, pk):
     venta = get_object_or_404(Venta, pk=pk)
     detalles = DetalleVenta.objects.filter(venta=venta).select_related('producto')
     return render(request, 'ventas/detalle.html', {'venta': venta, 'detalles': detalles})
+
+
+@requiere_login
+def ajax_stock_por_ruta(request):
+    """Devuelve stock por producto para una ruta dada (solo ADMIN)."""
+    if request.session.get('rol_nombre') != 'ADMIN':
+        return redirect('venta_create')
+
+    ruta_id = request.GET.get('ruta_id') or request.POST.get('ruta_id')
+    try:
+        ruta_id_int = int(ruta_id) if ruta_id not in (None, '', 'null') else None
+    except (TypeError, ValueError):
+        ruta_id_int = None
+
+    if not ruta_id_int:
+        return render(request, 'ventas/form.html')
+
+    qs = InventarioRuta.objects.filter(ruta_id=ruta_id_int).values_list('producto_id', 'cantidad')
+    stock_por_producto = {pid: cant for (pid, cant) in qs}
+
+    # Respuesta JSON simple.
+    from django.http import JsonResponse
+    return JsonResponse({'stocks': stock_por_producto})
+

@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% load ventas_extras %}
+
 {% block title %}Nueva Venta{% endblock %}
 
 {% block content %}
@@ -36,7 +38,7 @@
                         {% if es_admin %}
                         <div class="col-md-3">
                             <label class="form-label">Ruta (admin)</label>
-                            <select name="ruta_id" class="form-select bg-dark text-white border-secondary">
+                            <select name="ruta_id" id="rutaAdminSelect" class="form-select bg-dark text-white border-secondary" onchange="fetchStockPorRuta()">
                                 <option value="">Seleccionar ruta...</option>
                                 {% for r in rutas %}
                                     <option value="{{ r.id }}">{{ r.nombre }}</option>
@@ -70,10 +72,15 @@
                                     <tr>
                                         <td>{{ p.nombre }}</td>
                                         <td>${{ p.precio_venta }}</td>
-                                        <td><span class="badge bg-{% if p.stock_principal > 10 %}success{% elif p.stock_principal > 0 %}warning{% else %}danger{% endif %}">{{ p.stock_principal }}</span></td>
+                                        <td>
+{% with stock_ruta=stock_por_producto|get_item:p.id %}
+                                            <span class="badge bg-{% if stock_ruta|default:0 > 10 %}success{% elif stock_ruta|default:0 > 0 %}warning{% else %}danger{% endif %}">{{ stock_ruta|default:0 }}</span>
+                                            {% endwith %}
+                                        </td>
 
                                         <td style="width: 100px;">
-                                            <input type="number" min="0" max="{{ p.stock_principal }}" 
+                                            <input type="number" min="0" max="{{ stock_por_producto|get_item:p.id|default:0 }}"
+
                                                    class="form-control bg-dark text-white border-secondary cantidad-input" 
                                                    data-precio="{{ p.precio_venta }}" 
                                                    name="cantidad[]"
@@ -83,7 +90,8 @@
                                         </td>
                                         <td class="subtotal-cell">$0.00</td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-success" onclick="agregarProducto({{ p.id }}, '{{ p.nombre }}', {{ p.precio_venta }}, {{ p.stock_principal }})">
+                                            <button type="button" class="btn btn-sm btn-success" onclick="agregarProducto({{ p.id }}, '{{ p.nombre }}', {{ p.precio_venta }}, {{ stock_por_producto|get_item:p.id|default:0 }})">
+
                                                 <i class="bi bi-plus"></i>
                                             </button>
                                         </td>
@@ -128,6 +136,7 @@ function agregarProducto(id, nombre, precio, stock) {
 // Ajuste: antes se ponía la cantidad en TODAS las filas.
 // Ahora solo actualizamos la fila del producto presionado.
     var input = null;
+
 
 
     // Como en el template no existe data-producto-id en el input, buscamos por el hidden producto_id[] de la misma fila.
@@ -182,6 +191,67 @@ function recalcular() {
 
 // Inicializar valores
 recalcular();
+
+// ===== Stock dinámico por ruta (ADMIN) =====
+function fetchStockPorRuta() {
+    var select = document.getElementById('rutaAdminSelect');
+    if (!select) return;
+
+    var rutaId = select.value;
+    if (!rutaId) {
+        document.querySelectorAll('#productosBody tr').forEach(function(row) {
+            var badge = row.querySelector('span.badge');
+            var input = row.querySelector('input.cantidad-input');
+            if (badge) {
+                badge.textContent = '0';
+                badge.className = 'badge bg-danger';
+            }
+            if (input) {
+                input.max = '0';
+                if (parseInt(input.value) > 0) input.value = '0';
+            }
+        });
+        recalcular();
+        return;
+    }
+
+    var url = '{% url "ajax_stock_por_ruta" %}?ruta_id=' + encodeURIComponent(rutaId);
+
+    fetch(url, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+            var stocks = data.stocks || {};
+
+            document.querySelectorAll('#productosBody tr').forEach(function(row) {
+                var hidden = row.querySelector('input[type="hidden"][name="producto_id[]"]');
+                var badge = row.querySelector('span.badge');
+                var input = row.querySelector('input.cantidad-input');
+
+                if (!hidden) return;
+                var productoId = hidden.value;
+                var stock = parseInt(stocks[productoId] || 0);
+
+                if (badge) {
+                    badge.textContent = stock;
+                    badge.className = 'badge ' + (stock > 10 ? 'bg-success' : (stock > 0 ? 'bg-warning' : 'bg-danger'));
+                }
+
+                if (input) {
+                    input.max = stock;
+                    var current = parseInt(input.value) || 0;
+                    if (current > stock) input.value = stock;
+                }
+            });
+
+            recalcular();
+        })
+        .catch(function(err) { console.error('Error fetchStockPorRuta', err); });
+}
 </script>
 {% endblock %}
 {% endblock %}
+
+
