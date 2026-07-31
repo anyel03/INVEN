@@ -45,7 +45,7 @@
                                         <input type="number" min="1" max="{{ producto.stock_principal }}" 
                                                class="form-control bg-dark text-white border-secondary cantidad-input" 
                                                name="cantidad[]" placeholder="Cantidad" disabled>
-                                        <input type="hidden" name="producto_id[]" value="{{ producto.id }}">
+                                        <input type="hidden" name="producto_id[]" value="{{ producto.id }}" disabled>
                                     </div>
                                     <div class="col-md-2 text-end">
                                         <span class="text-muted">${{ producto.precio_venta }} c/u</span>
@@ -76,8 +76,11 @@
 <script>
 document.querySelectorAll('.producto-check').forEach(function(checkbox) {
     checkbox.addEventListener('change', function() {
-        var cantidadInput = this.closest('.row').querySelector('.cantidad-input');
+        var row = this.closest('.row');
+        var cantidadInput = row.querySelector('.cantidad-input');
+        var hiddenInput = row.querySelector('input[name="producto_id[]"]');
         cantidadInput.disabled = !this.checked;
+        hiddenInput.disabled = !this.checked;
         if (!this.checked) {
             cantidadInput.value = '';
         }

@@ -189,47 +189,60 @@ def transferencia_create(request):
             messages.error(request, 'Selecciona una ruta')
             return redirect('transferencia_create')
         
-        # Crear transferencia
-        transferencia = TransferenciaInventario.objects.create(ruta_id=ruta_id)
-        
         # Guardar productos
         producto_ids = request.POST.getlist('producto_id[]')
         cantidades = request.POST.getlist('cantidad[]')
         
+        if not producto_ids or not cantidades:
+            messages.error(request, 'Debes seleccionar al menos un producto para transferir')
+            return redirect('transferencia_create')
+            
         productos_no_stock = []
+        productos_a_transferir = []
         
         for prod_id, cant in zip(producto_ids, cantidades):
             if prod_id and cant and int(cant) > 0:
-                producto = Producto.objects.get(pk=prod_id)
-                cantidad = int(cant)
-                
-                # Verificar stock
-                if producto.stock_principal >= cantidad:
-                    # Descontar del stock principal
-                    producto.stock_principal -= cantidad
-                    producto.save()
-                    
-                    # Crear detalle
-                    DetalleTransferencia.objects.create(
-                        transferencia=transferencia,
-                        producto=producto,
-                        cantidad=cantidad
-                    )
-                    
-                    # Agregar a inventario de ruta
-                    inv_ruta, _ = InventarioRuta.objects.get_or_create(
-                        ruta_id=ruta_id,
-                        producto=producto,
-                        defaults={'cantidad': 0}
-                    )
-                    inv_ruta.cantidad += cantidad
-
-                    inv_ruta.save()
-                else:
-                    productos_no_stock.append(producto.nombre)
+                try:
+                    producto = Producto.objects.get(pk=prod_id)
+                    cantidad = int(cant)
+                    if producto.stock_principal >= cantidad:
+                        productos_a_transferir.append((producto, cantidad))
+                    else:
+                        productos_no_stock.append(producto.nombre)
+                except Producto.DoesNotExist:
+                    pass
         
         if productos_no_stock:
             messages.warning(request, f'Stock insuficiente para: {", ".join(productos_no_stock)}')
+            
+        if not productos_a_transferir:
+            messages.error(request, 'No se pudo realizar la transferencia porque ningún producto cuenta con el stock requerido')
+            return redirect('transferencia_create')
+            
+        with transaction.atomic():
+            # Crear transferencia
+            transferencia = TransferenciaInventario.objects.create(ruta_id=ruta_id)
+            
+            for producto, cantidad in productos_a_transferir:
+                # Descontar del stock principal
+                producto.stock_principal -= cantidad
+                producto.save()
+                
+                # Crear detalle
+                DetalleTransferencia.objects.create(
+                    transferencia=transferencia,
+                    producto=producto,
+                    cantidad=cantidad
+                )
+                
+                # Agregar a inventario de ruta
+                inv_ruta, _ = InventarioRuta.objects.get_or_create(
+                    ruta_id=ruta_id,
+                    producto=producto,
+                    defaults={'cantidad': 0}
+                )
+                inv_ruta.cantidad += cantidad
+                inv_ruta.save()
         
         messages.success(request, 'Transferencia creada correctamente')
         return redirect('transferencia_list')

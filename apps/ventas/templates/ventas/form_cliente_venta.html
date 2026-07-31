@@ -1,30 +1,41 @@
 {% extends 'base.html' %}
 
+{% load ventas_extras %}
+
 {% block title %}Nueva Venta (crear cliente){% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-12">
         <div class="card bg-dark border-primary">
-            <div class="card-header">
-                <h4 class="mb-0"><i class="bi bi-cart-plus me-2"></i>Nueva Venta (con creación de cliente en la misma vista)</h4>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="bi bi-cart-plus me-2"></i>Nueva Venta con Creación de Cliente</h4>
+                <a href="{% url 'venta_create' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Venta Estándar
+                </a>
             </div>
             <div class="card-body">
+                {% if not es_admin and empleado %}
+                <div class="alert alert-info py-2 mb-3">
+                    <i class="bi bi-geo-alt me-2"></i><strong>Ruta del Empleado:</strong> {{ empleado.ruta.nombre|default:"Sin ruta asignada" }}
+                    <small class="d-block text-muted">Tanto el cliente que crees como la venta quedarán vinculados automáticamente a tu ruta.</small>
+                </div>
+                {% endif %}
+
                 <div class="row">
-                    <!-- Panel de Cliente -->
+                    <!-- Panel de Crear Cliente -->
                     <div class="col-md-4 mb-4">
-                        <div class="card bg-dark border-secondary">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="bi bi-person-plus me-2"></i>Crear Cliente</h5>
+                        <div class="card bg-dark border-secondary h-100">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0"><i class="bi bi-person-plus me-2"></i>1. Registrar Cliente Nuevo</h5>
                             </div>
                             <div class="card-body">
                                 <form method="post" enctype="multipart/form-data">
                                     {% csrf_token %}
-
                                     <input type="hidden" name="form_type" value="cliente">
 
                                     <div class="mb-3">
-                                        <label class="form-label">Tipo de Documento</label>
+                                        <label class="form-label">Tipo de Documento *</label>
                                         <select name="tipo_documento" class="form-select bg-dark text-white border-secondary">
                                             <option value="CEDULA">Cédula</option>
                                             <option value="RUC">RUC</option>
@@ -53,17 +64,22 @@
                                     <div class="mb-3">
                                         <label class="form-label">Dirección</label>
                                         <textarea name="direccion" class="form-control bg-dark text-white border-secondary" rows="2"
-                                                  placeholder="Dirección"></textarea>
+                                                  placeholder="Dirección del cliente"></textarea>
                                     </div>
 
                                     <div class="mb-3">
                                         <label class="form-label">Ruta</label>
+                                        {% if es_admin %}
                                         <select name="ruta_id" class="form-select bg-dark text-white border-secondary">
                                             <option value="">Sin asignar</option>
                                             {% for ruta in rutas %}
                                             <option value="{{ ruta.id }}">{{ ruta.nombre }}</option>
                                             {% endfor %}
                                         </select>
+                                        {% else %}
+                                        <input type="text" class="form-control bg-dark text-white border-secondary" readonly value="{{ empleado.ruta.nombre|default:'Sin Ruta' }}">
+                                        <input type="hidden" name="ruta_id" value="{{ empleado.ruta_id|default:'' }}">
+                                        {% endif %}
                                     </div>
 
                                     <hr class="border-secondary">
@@ -72,15 +88,15 @@
                                     <div class="mb-3">
                                         <input type="file" name="foto_documento" class="form-control bg-dark text-white border-secondary"
                                                accept="image/*" capture="environment">
-                                        <small class="text-muted">📱 Toca para tomar foto con el celular</small>
+                                        <small class="text-muted">📱 Toca para tomar foto</small>
                                     </div>
 
                                     <div class="d-grid gap-2">
-                                        <button type="submit" class="btn btn-primary">
+                                        <button type="submit" class="btn btn-success">
                                             <i class="bi bi-check-lg me-2"></i>Guardar Cliente
                                         </button>
-                                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('ventaFormBlock').scrollIntoView({behavior:'smooth'});">
-                                            <i class="bi bi-arrow-down me-2"></i>Ir a Venta
+                                        <button type="button" class="btn btn-outline-light" onclick="document.getElementById('ventaFormBlock').scrollIntoView({behavior:'smooth'});">
+                                            <i class="bi bi-arrow-down me-2"></i>Ir a Formulario de Venta
                                         </button>
                                     </div>
                                 </form>
@@ -88,28 +104,84 @@
                         </div>
                     </div>
 
-                    <!-- Panel de Venta -->
+                    <!-- Panel de Crear Venta -->
                     <div class="col-md-8">
                         <div id="ventaFormBlock" class="card bg-dark border-secondary">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Datos de la Venta</h5>
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>2. Datos de la Venta</h5>
                             </div>
                             <div class="card-body">
-                                <form method="post" id="ventaForm" onsubmit="return true;">
+                                <form method="post" id="ventaForm" onsubmit="return validarVentaForm();">
                                     {% csrf_token %}
                                     <input type="hidden" name="form_type" value="venta">
 
-                                    <!-- Cliente -->
-                                    <div class="row mb-4">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Cliente *</label>
-                                            <select name="cliente_id" class="form-select bg-dark text-white border-secondary" required>
-                                                <option value="">Seleccionar cliente...</option>
-                                                {% for c in clientes %}
-                                                <option value="{{ c.numero_documento }}">{{ c.nombre }} ({{ c.numero_documento }})</option>
-                                                {% endfor %}
-                                            </select>
+                                    <!-- Cliente y Tipo -->
+                                    <div class="row mb-3">
+                                        <div class="col-md-6 position-relative">
+                                            <label class="form-label font-weight-bold">Cliente *</label>
+                                            <input type="hidden" name="cliente_id" id="cliente_id_hidden" required>
+
+                                            <!-- Contenedor Buscador -->
+                                            <div id="clienteSearchContainer">
+                                                <div class="input-group">
+                                                    <span class="input-group-text bg-secondary text-white border-secondary">
+                                                        <i class="bi bi-search"></i>
+                                                    </span>
+                                                    <input type="text" id="clienteSearchInput" 
+                                                           class="form-control bg-dark text-white border-secondary" 
+                                                           placeholder="Escribe para buscar cliente por nombre o documento..." 
+                                                           autocomplete="off"
+                                                           onfocus="mostrarClientesDropdown()" 
+                                                           oninput="filtrarClientesDropdown()">
+                                                </div>
+
+                                                <!-- Lista Desplegable Flotante -->
+                                                <div id="clienteDropdownList" class="list-group position-absolute w-100 shadow-lg border-secondary bg-dark overflow-auto d-none" 
+                                                     style="max-height: 280px; z-index: 1050; top: 100%; left: 0; margin-top: 2px;">
+                                                    {% for c in clientes %}
+                                                    <button type="button" class="list-group-item list-group-item-action bg-dark text-white border-secondary cliente-item py-2 px-3"
+                                                            data-id="{{ c.numero_documento }}"
+                                                            data-nombre="{{ c.nombre }}"
+                                                            data-doc="{{ c.numero_documento }}"
+                                                            data-ruta="{% if c.ruta %}{{ c.ruta.nombre }}{% endif %}"
+                                                            onclick="seleccionarCliente('{{ c.numero_documento }}', '{{ c.nombre|escapejs }}', '{{ c.numero_documento }}', '{% if c.ruta %}{{ c.ruta.nombre|escapejs }}{% endif %}')">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <strong class="text-info fs-6">{{ c.nombre }}</strong>
+                                                                <small class="d-block text-muted"><i class="bi bi-card-text me-1"></i>Doc: {{ c.numero_documento }}</small>
+                                                            </div>
+                                                            {% if es_admin and c.ruta %}
+                                                            <span class="badge bg-secondary"><i class="bi bi-geo-alt me-1"></i>{{ c.ruta.nombre }}</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </button>
+                                                    {% empty %}
+                                                    <div class="p-3 text-center text-muted">No hay clientes disponibles</div>
+                                                    {% endfor %}
+                                                    <div id="sinResultadosCliente" class="p-3 text-center text-warning d-none">
+                                                        <i class="bi bi-exclamation-circle me-1"></i>No se encontraron clientes coincidentes
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Cliente Seleccionado (Card) -->
+                                            <div id="clienteSeleccionadoBox" class="d-none">
+                                                <div class="card bg-secondary text-white border-info shadow-sm">
+                                                    <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <i class="bi bi-person-check-fill text-success fs-5 me-2"></i>
+                                                            <strong id="selectedClienteNombre" class="fs-6 text-white"></strong>
+                                                            <span class="badge bg-dark text-info ms-2" id="selectedClienteDoc"></span>
+                                                            <span class="badge bg-dark text-white ms-1 d-none" id="selectedClienteRuta"></span>
+                                                        </div>
+                                                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="deseleccionarCliente()">
+                                                            <i class="bi bi-pencil me-1"></i>Cambiar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+
                                         <div class="col-md-3">
                                             <label class="form-label">Tipo de Venta</label>
                                             <select name="tipo" class="form-select bg-dark text-white border-secondary">
@@ -119,15 +191,15 @@
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label">Descuento ($)</label>
-                                            <input type="number" step="0.01" name="descuento" class="form-control bg-dark text-white border-secondary" value="0">
+                                            <input type="number" step="0.01" name="descuento" class="form-control bg-dark text-white border-secondary" value="0" oninput="recalcular()">
                                         </div>
                                     </div>
 
-                                        {% if es_admin %}
+                                    {% if es_admin %}
                                     <div class="row mb-3">
                                         <div class="col-md-12">
-                                            <label class="form-label">Ruta (admin)</label>
-<select name="ruta_id" id="rutaAdminSelect" class="form-select bg-dark text-white border-secondary" onchange="fetchStockPorRuta()">
+                                            <label class="form-label">Ruta Inventario (admin) *</label>
+                                            <select name="ruta_id" id="rutaAdminSelect" class="form-select bg-dark text-white border-secondary" onchange="fetchStockPorRuta()">
                                                 <option value="">Seleccionar ruta...</option>
                                                 {% for r in rutas %}
                                                     <option value="{{ r.id }}">{{ r.nombre }}</option>
@@ -136,8 +208,6 @@
                                         </div>
                                     </div>
                                     {% endif %}
-
-
 
                                     <!-- Productos -->
                                     <div class="mb-3">
@@ -148,10 +218,10 @@
                                                     <tr>
                                                         <th>Producto</th>
                                                         <th>Precio</th>
-                                                        <th>Stock</th>
+                                                        <th>Stock en Ruta</th>
                                                         <th>Cantidad</th>
                                                         <th>Subtotal</th>
-                                                        <th></th>
+                                                        <th>Acción</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="productosBody">
@@ -164,23 +234,25 @@
                                                             <span class="badge bg-{% if stock_ruta|default:0 > 10 %}success{% elif stock_ruta|default:0 > 0 %}warning{% else %}danger{% endif %}">{{ stock_ruta|default:0 }}</span>
                                                             {% endwith %}
                                                         </td>
-                                                        <td style="width: 100px;">
+                                                        <td style="width: 120px;">
                                                             <input type="number" min="0" max="{{ stock_por_producto|get_item:p.id|default:0 }}"
                                                                    class="form-control bg-dark text-white border-secondary cantidad-input"
-
                                                                    data-precio="{{ p.precio_venta }}"
                                                                    name="cantidad[]"
-                                                                   value="0">
+                                                                   value="0"
+                                                                   oninput="recalcular()">
                                                             <input type="hidden" name="producto_id[]" value="{{ p.id }}">
                                                         </td>
-
                                                         <td class="subtotal-cell">$0.00</td>
                                                         <td>
                                                             <button type="button" class="btn btn-sm btn-success" onclick="agregarProducto({{ p.id }}, '{{ p.nombre }}', {{ p.precio_venta }}, {{ stock_por_producto|get_item:p.id|default:0 }})">
-
-                                                                <i class="bi bi-plus"></i>
+                                                                <i class="bi bi-plus-lg me-1"></i>Agregar
                                                             </button>
                                                         </td>
+                                                    </tr>
+                                                    {% empty %}
+                                                    <tr>
+                                                        <td colspan="6" class="text-center text-muted">No hay productos con stock en la ruta</td>
                                                     </tr>
                                                     {% endfor %}
                                                 </tbody>
@@ -191,7 +263,7 @@
                                     <div class="row mb-4">
                                         <div class="col-md-6">
                                             <label class="form-label">Observaciones</label>
-                                            <textarea name="observaciones" class="form-control bg-dark text-white border-secondary" rows="2"></textarea>
+                                            <textarea name="observaciones" class="form-control bg-dark text-white border-secondary" rows="2" placeholder="Notas opcionales sobre la venta"></textarea>
                                         </div>
                                         <div class="col-md-6 text-end">
                                             <h5>Subtotal: $<span id="subtotalDisplay">0.00</span></h5>
@@ -221,17 +293,114 @@
 
 {% block extra_js %}
 <script>
+// ===== LÓGICA DEL BUSCADOR DE CLIENTES =====
+function mostrarClientesDropdown() {
+    var dropdown = document.getElementById('clienteDropdownList');
+    if (dropdown) dropdown.classList.remove('d-none');
+    filtrarClientesDropdown();
+}
+
+function filtrarClientesDropdown() {
+    var input = document.getElementById('clienteSearchInput');
+    var filter = input ? input.value.toLowerCase().trim() : '';
+    var items = document.querySelectorAll('.cliente-item');
+    var visibles = 0;
+
+    items.forEach(function(item) {
+        var nombre = (item.dataset.nombre || '').toLowerCase();
+        var doc = (item.dataset.doc || '').toLowerCase();
+        var ruta = (item.dataset.ruta || '').toLowerCase();
+
+        if (nombre.includes(filter) || doc.includes(filter) || ruta.includes(filter)) {
+            item.classList.remove('d-none');
+            visibles++;
+        } else {
+            item.classList.add('d-none');
+        }
+    });
+
+    var sinResultados = document.getElementById('sinResultadosCliente');
+    if (sinResultados) {
+        if (visibles === 0 && items.length > 0) {
+            sinResultados.classList.remove('d-none');
+        } else {
+            sinResultados.classList.add('d-none');
+        }
+    }
+}
+
+function seleccionarCliente(id, nombre, doc, ruta) {
+    document.getElementById('cliente_id_hidden').value = id;
+    document.getElementById('selectedClienteNombre').textContent = nombre;
+    document.getElementById('selectedClienteDoc').textContent = 'Doc: ' + doc;
+    
+    var rutaBadge = document.getElementById('selectedClienteRuta');
+    if (ruta) {
+        rutaBadge.textContent = 'Ruta: ' + ruta;
+        rutaBadge.classList.remove('d-none');
+    } else {
+        rutaBadge.classList.add('d-none');
+    }
+
+    document.getElementById('clienteSearchContainer').classList.add('d-none');
+    document.getElementById('clienteSeleccionadoBox').classList.remove('d-none');
+    document.getElementById('clienteDropdownList').classList.add('d-none');
+}
+
+function deseleccionarCliente() {
+    document.getElementById('cliente_id_hidden').value = '';
+    document.getElementById('clienteSeleccionadoBox').classList.add('d-none');
+    document.getElementById('clienteSearchContainer').classList.remove('d-none');
+    var searchInput = document.getElementById('clienteSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    mostrarClientesDropdown();
+}
+
+function validarVentaForm() {
+    var clienteId = document.getElementById('cliente_id_hidden').value;
+    if (!clienteId) {
+        alert('Por favor selecciona un cliente antes de confirmar la venta.');
+        var searchInput = document.getElementById('clienteSearchInput');
+        if (searchInput) searchInput.focus();
+        return false;
+    }
+    return true;
+}
+
+// Cerrar dropdown al hacer click afuera
+document.addEventListener('click', function(e) {
+    var container = document.getElementById('clienteSearchContainer');
+    var dropdown = document.getElementById('clienteDropdownList');
+    if (container && dropdown && !container.contains(e.target)) {
+        dropdown.classList.add('d-none');
+    }
+});
+
+// ===== LÓGICA DE PRODUCTOS Y VALORES =====
 function agregarProducto(id, nombre, precio, stock) {
-    var cantidad = prompt('Cantidad para ' + nombre + ' (Stock: ' + stock + '):', '1');
-    if (cantidad && parseInt(cantidad) > 0 && parseInt(cantidad) <= stock) {
-        var rows = document.querySelectorAll('#productosBody tr');
-        rows.forEach(function(row) {
-            var input = row.querySelector('.cantidad-input');
-            if (input) {
-                input.value = cantidad;
-                recalcular();
-            }
-        });
+    var input = null;
+    var rows = document.querySelectorAll('#productosBody tr');
+    rows.forEach(function(row) {
+        var hidden = row.querySelector('input[type="hidden"][name="producto_id[]"]');
+        if (hidden && hidden.value == id) {
+            input = row.querySelector('input.cantidad-input');
+        }
+    });
+
+    if (!input) return;
+
+    var cantidadActual = parseInt(input.value) || 0;
+    var promptVal = prompt('Cantidad para ' + nombre + ' (Stock disponible: ' + stock + '):', String(cantidadActual > 0 ? cantidadActual : 1));
+
+    if (promptVal !== null) {
+        var cantidadInt = parseInt(promptVal);
+        if (isNaN(cantidadInt) || cantidadInt < 0) cantidadInt = 0;
+        if (cantidadInt > stock) cantidadInt = stock;
+        input.value = cantidadInt;
+        recalcular();
     }
 }
 
@@ -243,17 +412,22 @@ function recalcular() {
         var cell = row.querySelector('.subtotal-cell');
         if (input && cell) {
             var cantidad = parseInt(input.value) || 0;
-            var precio = parseFloat(input.dataset.precio);
+            var precio = parseFloat(input.dataset.precio) || 0;
             var suma = cantidad * precio;
             cell.textContent = '$' + suma.toFixed(2);
             subtotal += suma;
         }
     });
 
-    var descuento = parseFloat(document.querySelector('[name="descuento"]').value) || 0;
+    var descuentoInput = document.querySelector('[name="descuento"]');
+    var descuento = parseFloat(descuentoInput ? descuentoInput.value : 0) || 0;
+    if (isNaN(descuento) || descuento < 0) descuento = 0;
+
     document.getElementById('descuentoDisplay').textContent = descuento.toFixed(2);
 
     var total = subtotal - descuento;
+    if (total < 0) total = 0;
+    document.getElementById('subtotalDisplay').textContent = subtotal.toFixed(2);
     document.getElementById('totalDisplay').textContent = total.toFixed(2);
 }
 
@@ -267,7 +441,6 @@ function fetchStockPorRuta() {
 
     var rutaId = select.value;
     if (!rutaId) {
-        // Reset UI a 0 si no hay ruta
         document.querySelectorAll('#productosBody tr').forEach(function(row) {
             var badge = row.querySelector('span.badge');
             var input = row.querySelector('input.cantidad-input');
@@ -278,7 +451,6 @@ function fetchStockPorRuta() {
             if (input) {
                 input.max = '0';
                 if (parseInt(input.value) > 0) input.value = '0';
-                // subtotal se recalcula
             }
         });
         recalcular();
@@ -289,9 +461,7 @@ function fetchStockPorRuta() {
 
     fetch(url, {
         method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
         .then(function(resp) { return resp.json(); })
         .then(function(data) {
@@ -320,13 +490,8 @@ function fetchStockPorRuta() {
 
             recalcular();
         })
-        .catch(function(err) {
-            console.error('Error fetchStockPorRuta', err);
-        });
+        .catch(function(err) { console.error('Error fetchStockPorRuta', err); });
 }
 </script>
 {% endblock %}
 {% endblock %}
-
-
-
