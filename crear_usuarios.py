@@ -10,7 +10,7 @@ def encrypt(pwd):
 db_name = 'db.sqlite3'
 
 if not os.path.exists(db_name):
-    print(f"❌ No existe {db_name}. Primero corre: python manage.py migrate")
+    print(f" No existe {db_name}. Primero corre: python manage.py migrate")
 else:
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
@@ -18,14 +18,14 @@ else:
     # Crear rol ADMIN
     try:
         cursor.execute("INSERT INTO roles (nombre) VALUES ('ADMIN')")
-        print("✅ Rol ADMIN creado")
+        print(" Rol ADMIN creado")
     except:
         pass
     
     # Crear rol EMPLEADO
     try:
         cursor.execute("INSERT INTO roles (nombre) VALUES ('EMPLEADO')")
-        print("✅ Rol EMPLEADO creado")  
+        print(" Rol EMPLEADO creado")  
     except:
         pass
     
@@ -41,9 +41,9 @@ else:
             INSERT INTO usuarios (nombre, email, password, rol_id, activo) 
             VALUES (?, ?, ?, ?, ?)
         """, ('Administrador', 'admin@empresa.com', encrypt('admin123'), admin_id, 1))
-        print("✅ ADMIN: admin@empresa.com / admin123")
+        print(" ADMIN: admin@empresa.com / admin123")
     except:
-        print("⚠️ Admin ya existe")
+        print(" Admin ya existe")
     
     # Crear EMPLEADO
     try:
@@ -51,11 +51,11 @@ else:
             INSERT INTO usuarios (nombre, email, password, rol_id, activo) 
             VALUES (?, ?, ?, ?, ?)
         """, ('Juan Pérez', 'juan@empresa.com', encrypt('empleado123'), emp_id, 1))
-        print("✅ EMPLEADO: juan@empresa.com / empleado123")
+        print(" EMPLEADO: juan@empresa.com / empleado123")
     except:
-        print("⚠️ Empleado ya existe")
+        print(" Empleado ya existe")
     
     conn.commit()
     conn.close()
     
-    print("\n🎉 Usuarios creados correctamente!")
+    print("\n Usuarios creados correctamente!")

@@ -1,47 +1,63 @@
 {% extends 'base.html' %}
 
-{% block title %}Caja por Rutas{% endblock %}
+{% block title %}Cierre de Caja por Rutas{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
-    <h1><i class="bi bi-geo-alt me-2"></i>Caja por Rutas</h1>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-2 pb-3 mb-4 border-bottom border-secondary">
+    <div>
+        <h1 class="h2 mb-1"><i class="bi bi-geo-alt text-warning me-2"></i>Arqueos y Cierres de Caja por Ruta</h1>
+        <p class="text-muted mb-0 small">Cuadre de ventas, cobros recaudados y efectivo entregado por repartidores.</p>
+    </div>
+    <div>
+        <a href="{% url 'caja_ruta_create' %}" class="btn btn-warning btn-lg shadow-sm text-dark font-weight-bold">
+            <i class="bi bi-plus-circle me-2"></i>Registrar Cierre / Arqueo
+        </a>
+    </div>
 </div>
 
-<div class="row">
-    {% for caja in cajas %}
-    <div class="col-md-4 mb-4">
-        <div class="card bg-dark border-primary h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>{{ caja.ruta.nombre }}</h5>
+<div class="row g-3">
+    {% for item in cajas_list %}
+    <div class="col-md-6 col-lg-4 mb-3">
+        <div class="card bg-dark border-secondary h-100 shadow-sm">
+            <div class="card-header bg-secondary bg-opacity-20 border-secondary d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-white"><i class="bi bi-geo-alt text-warning me-2"></i>{{ item.caja.ruta.nombre }}</h5>
+                <span class="badge bg-secondary font-monospace"><i class="bi bi-calendar-event me-1"></i>{{ item.caja.fecha|date:"d/m/Y" }}</span>
             </div>
-            <div class="card-body">
-                <p class="mb-2"><strong>Fecha:</strong> {{ caja.fecha|date:"d/m/Y" }}</p>
-                <hr class="border-secondary">
-                <div class="row text-center">
-                    <div class="col-4">
-                        <h6 class="text-muted">Ventas</h6>
-                        <h5 class="text-primary">${{ caja.total_ventas }}</h5>
+            <div class="card-body p-3">
+                <div class="row text-center mb-3">
+                    <div class="col-4 border-end border-secondary">
+                        <span class="text-muted small d-block">Ventas</span>
+                        <h5 class="text-primary mb-0 mt-1">${{ item.caja.total_ventas|floatformat:2 }}</h5>
+                    </div>
+                    <div class="col-4 border-end border-secondary">
+                        <span class="text-muted small d-block">Cobros</span>
+                        <h5 class="text-success mb-0 mt-1">${{ item.caja.total_cobros|floatformat:2 }}</h5>
                     </div>
                     <div class="col-4">
-                        <h6 class="text-muted">Cobros</h6>
-                        <h5 class="text-success">${{ caja.total_cobros }}</h5>
+                        <span class="text-muted small d-block">Entregado</span>
+                        <h5 class="text-info mb-0 mt-1">${{ item.caja.total_entregado|floatformat:2 }}</h5>
                     </div>
-                    <div class="col-4">
-                        <h6 class="text-muted">Entregado</h6>
-                        <h5 class="text-info">${{ caja.total_entregado }}</h5>
-                    </div>
+                </div>
+
+                <div class="p-2 rounded bg-opacity-10 text-center border {% if item.estado_cuadre == 'CUADRADO' %}border-success bg-success text-success{% elif item.estado_cuadre == 'SOBRANTE' %}border-info bg-info text-info{% else %}border-danger bg-danger text-danger{% endif %}">
+                    {% if item.estado_cuadre == 'CUADRADO' %}
+                        <i class="bi bi-check-circle-fill me-1"></i><strong>Caja Cuadrada</strong> (Diferencia: $0.00)
+                    {% elif item.estado_cuadre == 'SOBRANTE' %}
+                        <i class="bi bi-arrow-up-circle-fill me-1"></i><strong>Sobrante:</strong> +${{ item.diferencia|floatformat:2 }}
+                    {% else %}
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i><strong>Faltante:</strong> -${{ item.diferencia|stringformat:".2f"|slice:"1:" }}
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
     {% empty %}
     <div class="col-12">
-        <div class="card bg-dark border-secondary">
-            <div class="card-body text-center">
-                <p class="text-muted mb-0">No hay cajas registradas</p>
-            </div>
+        <div class="card bg-dark border-secondary p-5 text-center">
+            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+            <p class="text-muted mb-0">No se han registrado cierres ni arqueos de caja por ruta.</p>
         </div>
     </div>
     {% endfor %}
 </div>
-{% endblock %}
+{% endblock %}

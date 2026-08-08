@@ -3,43 +3,148 @@
 {% block title %}Reporte de Ventas{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
-    <h1><i class="bi bi-file-text me-2"></i>Reporte de Ventas</h1>
-    <a href="{% url 'finanzas_dashboard' %}" class="btn btn-secondary">
-        <i class="bi bi-arrow-left me-2"></i>Volver
-    </a>
-</div>
-
-<div class="card bg-dark border-secondary">
-    <div class="card-body p-0">
-        <table class="table table-dark table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Fecha</th>
-                    <th>Cliente</th>
-                    <th>Tipo</th>
-                    <th>Total</th>
-                    <th>Cobrado</th>
-                    <th>Estado</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for v in ventas %}
-                <tr>
-                    <td>#{{ v.id }}</td>
-                    <td>{{ v.created_at|date:"d/m/Y H:i" }}</td>
-                    <td>{{ v.cliente.nombre }}</td>
-                    <td><span class="badge bg-{% if v.tipo == 'CONTADO' %}success{% else %}warning{% endif %}">{{ v.tipo }}</span></td>
-                    <td>${{ v.total }}</td>
-                    <td class="text-success">${{ v.cobrado }}</td>
-                    <td><span class="badge bg-{% if v.estado == 'PAGADA' %}success{% elif v.estado == 'PENDIENTE' %}warning{% else %}danger{% endif %}">{{ v.estado }}</span></td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="7" class="text-center text-muted">No hay ventas</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-2 pb-3 mb-4 border-bottom border-secondary">
+    <div>
+        <h1 class="h2 mb-1"><i class="bi bi-file-earmark-bar-graph text-info me-2"></i>Reporte Detallado de Ventas</h1>
+        <p class="text-muted mb-0 small">Análisis de ventas, créditos y cobros por período y ruta.</p>
+    </div>
+    <div>
+        <a href="{% url 'finanzas_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Volver a Finanzas
+        </a>
     </div>
 </div>
-{% endblock %}
+
+<!-- Tarjetas Resumen -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card bg-dark border-primary shadow-sm">
+            <div class="card-body p-3 text-center">
+                <span class="text-muted small text-uppercase fw-bold">Monto Total de Ventas</span>
+                <h3 class="text-primary mb-0 mt-1">${{ total_ventas_monto|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-dark border-success shadow-sm">
+            <div class="card-body p-3 text-center">
+                <span class="text-muted small text-uppercase fw-bold">Total Recaudado / Cobrado</span>
+                <h3 class="text-success mb-0 mt-1">${{ total_cobrado_monto|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-dark border-warning shadow-sm">
+            <div class="card-body p-3 text-center">
+                <span class="text-muted small text-uppercase fw-bold">Saldo Pendiente por Cobrar</span>
+                <h3 class="text-warning mb-0 mt-1">${{ total_pendiente_monto|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Formulario de Filtros -->
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label for="fecha_inicio" class="form-label text-white small">Desde</label>
+                <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control bg-dark text-white border-secondary" value="{{ fecha_inicio }}">
+            </div>
+            <div class="col-md-3">
+                <label for="fecha_fin" class="form-label text-white small">Hasta</label>
+                <input type="date" name="fecha_fin" id="fecha_fin" class="form-control bg-dark text-white border-secondary" value="{{ fecha_fin }}">
+            </div>
+            <div class="col-md-2">
+                <label for="ruta_id" class="form-label text-white small">Ruta</label>
+                <select name="ruta_id" id="ruta_id" class="form-select bg-dark text-white border-secondary">
+                    <option value="">Todas las rutas</option>
+                    {% for r in rutas %}
+                    <option value="{{ r.id }}" {% if ruta_id == r.id|stringformat:"s" %}selected{% endif %}>{{ r.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="tipo" class="form-label text-white small">Tipo</label>
+                <select name="tipo" id="tipo" class="form-select bg-dark text-white border-secondary">
+                    <option value="">Todos</option>
+                    <option value="CONTADO" {% if tipo == 'CONTADO' %}selected{% endif %}>Contado</option>
+                    <option value="CREDITO" {% if tipo == 'CREDITO' %}selected{% endif %}>Crédito</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+                <a href="{% url 'reporte_ventas' %}" class="btn btn-outline-secondary" title="Limpiar"><i class="bi bi-x-lg"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de Reporte de Ventas -->
+<div class="card bg-dark border-secondary shadow-sm">
+    <div class="card-header bg-secondary bg-opacity-20 border-secondary py-3 d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0 text-white"><i class="bi bi-table me-2"></i>Ventas Registradas ({{ ventas|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr class="table-secondary text-uppercase small">
+                        <th class="ps-3"># Venta</th>
+                        <th>Fecha</th>
+                        <th>Cédula</th>
+                        <th>Cliente</th>
+                        <th>Ruta</th>
+                        <th>Tipo</th>
+                        <th>Total</th>
+                        <th>Cobrado</th>
+                        <th>Pendiente</th>
+                        <th class="pe-3">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in ventas %}
+                    <tr>
+                        <td class="ps-3 fw-bold text-info">#{{ v.id }}</td>
+                        <td class="small text-muted">{{ v.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if v.cliente.numero_documento %}
+                            <span class="badge bg-secondary font-monospace">{{ v.cliente.numero_documento }}</span>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td class="fw-semibold text-white">{{ v.cliente.nombre }}</td>
+                        <td>
+                            {% if v.cliente.ruta %}
+                                <span class="badge bg-outline-primary border border-primary text-primary">{{ v.cliente.ruta.nombre }}</span>
+                            {% elif v.ruta %}
+                                <span class="badge bg-outline-primary border border-primary text-primary">{{ v.ruta.nombre }}</span>
+                            {% else %}<span class="text-muted small">Sin Ruta</span>{% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if v.tipo == 'CONTADO' %}success{% else %}warning text-dark{% endif %}">
+                                {{ v.tipo }}
+                            </span>
+                        </td>
+                        <td class="fw-bold">${{ v.total|floatformat:2 }}</td>
+                        <td class="text-success">${{ v.cobrado|floatformat:2 }}</td>
+                        <td class="text-warning">${{ v.pendiente|floatformat:2 }}</td>
+                        <td class="pe-3">
+                            <span class="badge bg-{% if v.estado == 'PAGADA' %}success{% elif v.estado == 'PENDIENTE' %}warning text-dark{% else %}danger{% endif %}">
+                                {{ v.estado }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                            No hay ventas registradas que coincidan con los criterios seleccionados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

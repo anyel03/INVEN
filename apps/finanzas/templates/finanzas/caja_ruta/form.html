@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar Cierre de Caja por Ruta{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="card bg-dark border-warning shadow-lg">
+            <div class="card-header bg-warning bg-opacity-10 border-warning py-3">
+                <h4 class="mb-0 text-warning"><i class="bi bi-geo-alt me-2"></i>Registrar Cierre de Caja por Ruta</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" id="cajaForm">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="ruta_id" class="form-label fw-bold text-white fs-5">Ruta *</label>
+                        <select name="ruta_id" id="ruta_id" class="form-select bg-dark text-white border-secondary fs-5" required>
+                            <option value="">Seleccionar ruta...</option>
+                            {% for r in rutas %}
+                            <option value="{{ r.id }}">{{ r.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="fecha" class="form-label fw-bold text-white">Fecha del Arqueo *</label>
+                        <input type="date" name="fecha" id="fecha" class="form-control bg-dark text-white border-secondary fs-5" value="{{ fecha_hoy }}" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="total_entregado" class="form-label fw-bold text-white fs-5">Efectivo / Dinero Entregado ($) *</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-secondary border-secondary text-warning fw-bold">$</span>
+                            <input type="number" 
+                                   step="0.01" 
+                                   name="total_entregado" 
+                                   id="total_entregado" 
+                                   class="form-control bg-dark text-white border-secondary fs-4" 
+                                   placeholder="0.00" 
+                                   min="0" 
+                                   required>
+                        </div>
+                        <div class="form-text text-muted">
+                            El sistema calculará automáticamente las ventas y cobros registrados en el sistema para esa ruta en la fecha seleccionada para cuadrar la caja.
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'caja_ruta_list' %}" class="btn btn-outline-secondary px-4 me-md-2">
+                            <i class="bi bi-arrow-left me-2"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-warning btn-lg px-5 shadow-sm text-dark font-weight-bold">
+                            <i class="bi bi-check-lg me-2"></i>Guardar Cierre de Caja
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
