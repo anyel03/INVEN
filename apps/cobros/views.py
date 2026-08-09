@@ -193,7 +193,9 @@ def cobro_create(request):
     ventas_qs = Venta.objects.filter(
         tipo='CREDITO',
         estado='PENDIENTE'
-    ).select_related('cliente', 'ruta', 'cliente__ruta')
+    ).select_related('cliente', 'ruta', 'cliente__ruta').order_by(
+        models.F('proximo_cobro').asc(nulls_last=True), '-created_at'
+    )
 
     if not es_admin:
         if ruta_id:
@@ -255,6 +257,7 @@ def cobros_pendientes(request):
     search = request.GET.get('search', '').strip()
     ruta_filtro = request.GET.get('ruta_id', '').strip()
     color_filtro = request.GET.get('color', '').strip().upper()
+    orden = request.GET.get('orden', 'proximo_asc').strip()
 
     today = date.today()
 
@@ -270,7 +273,14 @@ def cobros_pendientes(request):
     elif color_filtro == 'VERDE':
         ventas_qs = ventas_qs.filter(proximo_cobro__gt=today)
 
-    ventas_qs = ventas_qs.order_by('proximo_cobro', '-created_at')
+    if orden == 'proximo_desc':
+        ventas_qs = ventas_qs.order_by(models.F('proximo_cobro').desc(nulls_last=True), '-created_at')
+    elif orden == 'saldo_desc':
+        ventas_qs = ventas_qs.order_by('-saldo', models.F('proximo_cobro').asc(nulls_last=True))
+    elif orden == 'fecha_desc':
+        ventas_qs = ventas_qs.order_by('-created_at')
+    else:  # proximo_asc (default: más urgentes / próximos primero, nulos al final)
+        ventas_qs = ventas_qs.order_by(models.F('proximo_cobro').asc(nulls_last=True), '-created_at')
 
     if not es_admin:
         if ruta_id:
@@ -314,6 +324,7 @@ def cobros_pendientes(request):
         'search': search,
         'ruta_filtro': ruta_filtro,
         'color_filtro': color_filtro,
+        'orden': orden,
         'es_admin': es_admin,
         'ruta_nombre': ruta_nombre,
         'today': today

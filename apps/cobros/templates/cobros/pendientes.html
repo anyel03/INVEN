@@ -62,7 +62,7 @@
 <div class="card bg-dark border-secondary mb-4 shadow-sm">
     <div class="card-body p-3">
         <form method="get" class="row g-2 align-items-center">
-            <div class="col-md-{% if es_admin %}4{% else %}6{% endif %}">
+            <div class="col-md-{% if es_admin %}3{% else %}4{% endif %}">
                 <div class="input-group">
                     <span class="input-group-text bg-secondary border-secondary text-white"><i class="bi bi-search"></i></span>
                     <input type="text" 
@@ -74,8 +74,8 @@
             </div>
 
             {% if es_admin %}
-            <div class="col-md-3">
-                <select name="ruta_id" class="form-select bg-dark text-white border-secondary">
+            <div class="col-md-2">
+                <select name="ruta_id" class="form-select bg-dark text-white border-secondary" onchange="this.form.submit()">
                     <option value="">Todas las rutas</option>
                     {% for r in rutas %}
                     <option value="{{ r.id }}" {% if ruta_filtro == r.id|stringformat:"s" %}selected{% endif %}>{{ r.nombre }}</option>
@@ -93,9 +93,18 @@
                 </select>
             </div>
 
-            <div class="col-md-2 d-flex gap-1">
-                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Filtrar</button>
-                {% if search or ruta_filtro or color_filtro %}
+            <div class="col-md-3">
+                <select name="orden" class="form-select bg-dark text-white border-secondary" onchange="this.form.submit()">
+                    <option value="proximo_asc" {% if orden == 'proximo_asc' or not orden %}selected{% endif %}>📅 Próximo Cobro (Más urgentes primero)</option>
+                    <option value="proximo_desc" {% if orden == 'proximo_desc' %}selected{% endif %}>📅 Próximo Cobro (Más lejanos primero)</option>
+                    <option value="saldo_desc" {% if orden == 'saldo_desc' %}selected{% endif %}>💰 Saldo Pendiente (Mayor a menor)</option>
+                    <option value="fecha_desc" {% if orden == 'fecha_desc' %}selected{% endif %}>🕒 Venta más reciente</option>
+                </select>
+            </div>
+
+            <div class="col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-primary w-100" title="Aplicar Filtros"><i class="bi bi-funnel"></i></button>
+                {% if search or ruta_filtro or color_filtro or orden and orden != 'proximo_asc' %}
                 <a href="{% url 'cobros_pendientes' %}" class="btn btn-outline-secondary" title="Limpiar Filtros"><i class="bi bi-x-lg"></i></a>
                 {% endif %}
             </div>
@@ -107,6 +116,13 @@
 <div class="card bg-dark border-secondary shadow-sm">
     <div class="card-header bg-secondary bg-opacity-20 border-secondary py-3 d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0 text-white"><i class="bi bi-list-check me-2"></i>Listado de Cuentas por Cobrar ({{ pendientes|length }})</h5>
+        <span class="badge bg-outline-warning border border-warning text-warning small">
+            <i class="bi bi-sort-down me-1"></i>
+            {% if orden == 'proximo_desc' %}Próximo Cobro (Lejanos primero)
+            {% elif orden == 'saldo_desc' %}Mayor Saldo Pendiente
+            {% elif orden == 'fecha_desc' %}Venta más reciente
+            {% else %}Organizado por Próximo Cobro (Más urgentes primero){% endif %}
+        </span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -121,7 +137,14 @@
                         <th>Subtotal</th>
                         <th>Abonado</th>
                         <th>Saldo Pendiente</th>
-                        <th>Próximo Cobro</th>
+                        <th class="text-warning">
+                            <i class="bi bi-calendar-event me-1"></i>Próximo Cobro
+                            {% if orden == 'proximo_asc' or not orden %}
+                                <i class="bi bi-sort-numeric-down text-warning ms-1" title="Ordenado por Próximo Cobro (Más urgentes primero)"></i>
+                            {% elif orden == 'proximo_desc' %}
+                                <i class="bi bi-sort-numeric-down-alt text-warning ms-1" title="Ordenado por Próximo Cobro (Más lejanos primero)"></i>
+                            {% endif %}
+                        </th>
                         <th class="pe-3 text-end">Acciones</th>
                     </tr>
                 </thead>
