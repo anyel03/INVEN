@@ -8,8 +8,6 @@ class Cobro(models.Model):
     metodo = models.CharField(max_length=20, choices=[
         ('EFECTIVO', 'Efectivo'),
         ('TRANSFERENCIA', 'Transferencia'),
-        ('YAPE', 'Yape'),
-        ('PLIN', 'Plin'),
     ], default='EFECTIVO')
     observacion = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

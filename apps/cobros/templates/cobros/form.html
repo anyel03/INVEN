@@ -102,8 +102,6 @@
                         <select name="metodo" id="metodo" class="form-select bg-dark text-white border-secondary">
                             <option value="EFECTIVO">💵 Efectivo</option>
                             <option value="TRANSFERENCIA">🏦 Transferencia Bancaria</option>
-                            <option value="YAPE">📱 Yape</option>
-                            <option value="PLIN">📲 Plin</option>
                         </select>
                     </div>
 
@@ -175,6 +173,22 @@
                         currentSelectedVentaPendiente = v.pendiente;
                     }
 
+                    const todayIso = "{{ today_iso }}";
+                    let dateBadgeClass = "bg-success text-white";
+                    let dateLabel = v.proximo_cobro;
+
+                    if (v.proximo_cobro_iso) {
+                        if (v.proximo_cobro_iso < todayIso) {
+                            dateBadgeClass = "bg-danger text-white";
+                            dateLabel = "Pasado: " + v.proximo_cobro;
+                        } else if (v.proximo_cobro_iso === todayIso) {
+                            dateBadgeClass = "bg-warning text-dark";
+                            dateLabel = "Cobrar Hoy: " + v.proximo_cobro;
+                        } else {
+                            dateBadgeClass = "bg-success text-white";
+                        }
+                    }
+
                     const div = document.createElement('div');
                     div.className = `list-group-item bg-dark border-secondary text-white d-flex justify-content-between align-items-center p-2 mb-1 rounded`;
                     div.innerHTML = `
@@ -182,9 +196,11 @@
                             <input class="form-check-input me-2" type="radio" name="venta_radio" id="venta_radio_${v.id}" value="${v.id}" ${isChecked ? 'checked' : ''}>
                             <label class="form-check-label fw-bold text-info" for="venta_radio_${v.id}">
                                 Venta #${v.id} <span class="text-muted fw-normal">(${v.fecha})</span>
+                                <span class="badge bg-secondary ms-1">${v.frecuencia || 'Semanal'}</span>
                             </label>
                         </div>
                         <div>
+                            <span class="badge ${dateBadgeClass} me-2"><i class="bi bi-calendar-event me-1"></i>${dateLabel}</span>
                             <span class="badge bg-warning text-dark me-2">Pendiente: $${v.pendiente.toFixed(2)}</span>
                             <span class="text-muted small">Total: $${v.total.toFixed(2)}</span>
                         </div>

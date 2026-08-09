@@ -112,6 +112,7 @@
                         <th>Subtotal</th>
                         <th>Abonado</th>
                         <th>Saldo Pendiente</th>
+                        <th>Próximo Cobro</th>
                         <th class="pe-3 text-end">Acciones</th>
                     </tr>
                 </thead>
@@ -143,6 +144,25 @@
                                 ${{ v.saldo_pendiente|floatformat:2 }}
                             </span>
                         </td>
+                        <td>
+                            {% if v.proximo_cobro %}
+                                {% if v.proximo_cobro < today %}
+                                    <span class="badge bg-danger text-white font-monospace px-2 py-1" title="Cobro vencido">
+                                        <i class="bi bi-exclamation-circle-fill me-1"></i>Pasado: {{ v.proximo_cobro|date:"d/m/Y" }}
+                                    </span>
+                                {% elif v.proximo_cobro == today %}
+                                    <span class="badge bg-warning text-dark font-monospace px-2 py-1" title="Cobro para el día de hoy">
+                                        <i class="bi bi-clock-fill me-1"></i>Cobrar Hoy: {{ v.proximo_cobro|date:"d/m/Y" }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success text-white font-monospace px-2 py-1" title="Próximo cobro programado">
+                                        <i class="bi bi-calendar-check me-1"></i>{{ v.proximo_cobro|date:"d/m/Y" }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
                         <td class="pe-3 text-end">
                             <a href="{% url 'cobro_create' %}" class="btn btn-sm btn-success">
                                 <i class="bi bi-cash me-1"></i>Cobrar
@@ -154,7 +174,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center py-5 text-muted">
+                        <td colspan="10" class="text-center py-5 text-muted">
                             <i class="bi bi-check-circle fs-1 text-success d-block mb-2"></i>
                             ¡Excelente! No hay cuentas pendientes por cobrar{% if search %} para esta búsqueda{% endif %}.
                         </td>

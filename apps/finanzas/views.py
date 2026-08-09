@@ -88,14 +88,12 @@ def dashboard(request):
     ventas_total = get_decimal(ventas_qs.aggregate(t=Sum('total'))['t'])
     ventas_contado = get_decimal(ventas_qs.filter(tipo='CONTADO').aggregate(t=Sum('total'))['t'])
     ventas_credito = get_decimal(ventas_qs.filter(tipo='CREDITO').aggregate(t=Sum('total'))['t'])
-    ventas_pendientes = get_decimal(ventas_qs.filter(estado='PENDIENTE').aggregate(t=Sum('total'))['t'])
+    ventas_pendientes = get_decimal(ventas_qs.filter(estado='PENDIENTE').aggregate(t=Sum('saldo'))['t'])
 
     # Totales de Cobros por Método
     cobros_total = get_decimal(cobros_qs.aggregate(t=Sum('monto'))['t'])
     cobros_efectivo = get_decimal(cobros_qs.filter(metodo='EFECTIVO').aggregate(t=Sum('monto'))['t'])
     cobros_transferencia = get_decimal(cobros_qs.filter(metodo='TRANSFERENCIA').aggregate(t=Sum('monto'))['t'])
-    cobros_yape = get_decimal(cobros_qs.filter(metodo='YAPE').aggregate(t=Sum('monto'))['t'])
-    cobros_plin = get_decimal(cobros_qs.filter(metodo='PLIN').aggregate(t=Sum('monto'))['t'])
 
     # Compras e Ingresos
     compras_total = get_decimal(compras_qs.aggregate(t=Sum('total'))['t'])
@@ -130,8 +128,6 @@ def dashboard(request):
         'cobros_total': cobros_total,
         'cobros_efectivo': cobros_efectivo,
         'cobros_transferencia': cobros_transferencia,
-        'cobros_yape': cobros_yape,
-        'cobros_plin': cobros_plin,
         'compras_total': compras_total,
         'ingresos_extra': ingresos_extra,
         'liquidez': liquidez,
@@ -191,7 +187,7 @@ def reporte_ventas(request):
     for v in ventas:
         cobros_sum = Cobro.objects.filter(venta=v).aggregate(t=Sum('monto'))['t'] or Decimal('0')
         v.cobrado = cobros_sum
-        v.pendiente = (v.total - cobros_sum) if (v.total - cobros_sum) > Decimal('0') else Decimal('0')
+        v.pendiente = v.saldo
         
         total_ventas_subtotal += v.subtotal
         total_ventas_descuento += v.descuento
@@ -375,19 +371,104 @@ def ingreso_delete(request, pk):
 @requiere_login
 @solo_admin
 def caja_ruta_list(request):
-    """Lista de cierres de caja por rutas"""
-    cajas = CajaRuta.objects.all().select_related('ruta').order_by('-fecha')
+    """Lista de cierres de caja por rutas y resumen mensual por ruta"""
+    from datetime import date
+    now = timezone.localtime(timezone.now())
+    mes_str = request.GET.get('mes', now.strftime('%Y-%m')).strip()
+
+    try:
+        year, month = map(int, mes_str.split('-'))
+    except (ValueError, AttributeError):
+        year = now.year
+        month = now.month
+        mes_str = now.strftime('%Y-%m')
+
+    # Resumen Mensual por Ruta (dinero recolectado a entregar)
+    rutas = Ruta.objects.all().order_by('nombre')
+    resumen_rutas_mes = []
+    total_general_contado_mes = Decimal('0')
+    total_general_cobros_mes = Decimal('0')
+    total_general_recaudado_mes = Decimal('0')
+    total_general_entregado_mes = Decimal('0')
+
+    for r in rutas:
+        v_contado = Venta.objects.filter(
+            Q(ruta=r) | Q(cliente__ruta=r),
+            tipo='CONTADO',
+            created_at__year=year,
+            created_at__month=month
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+        cobros = Cobro.objects.filter(
+            Q(venta__ruta=r) | Q(venta__cliente__ruta=r),
+            created_at__year=year,
+            created_at__month=month
+        ).aggregate(t=Sum('monto'))['t'] or Decimal('0')
+
+        recaudado_esperado = v_contado + cobros
+
+        entregado = CajaRuta.objects.filter(
+            ruta=r,
+            fecha__year=year,
+            fecha__month=month
+        ).aggregate(t=Sum('total_entregado'))['t'] or Decimal('0')
+
+        diferencia = entregado - recaudado_esperado
+        if diferencia == Decimal('0'):
+            estado = 'CUADRADO'
+        elif diferencia > Decimal('0'):
+            estado = 'SOBRANTE'
+        else:
+            estado = 'FALTANTE'
+
+        resumen_rutas_mes.append({
+            'ruta': r,
+            'ventas_contado': v_contado,
+            'cobros': cobros,
+            'total_recaudado': recaudado_esperado,
+            'total_entregado': entregado,
+            'diferencia': diferencia,
+            'estado': estado,
+        })
+
+        total_general_contado_mes += v_contado
+        total_general_cobros_mes += cobros
+        total_general_recaudado_mes += recaudado_esperado
+        total_general_entregado_mes += entregado
+
+    # Listado de Arqueos Diarios
+    cajas = CajaRuta.objects.filter(
+        fecha__year=year,
+        fecha__month=month
+    ).select_related('ruta').order_by('-fecha')
 
     cajas_list = []
     for c in cajas:
-        diferencia = c.total_entregado - c.total_cobros
+        v_contado_dia = Venta.objects.filter(
+            Q(ruta=c.ruta) | Q(cliente__ruta=c.ruta),
+            tipo='CONTADO',
+            created_at__date=c.fecha
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+        recaudado_dia = v_contado_dia + c.total_cobros
+        diferencia = c.total_entregado - recaudado_dia
         cajas_list.append({
             'caja': c,
+            'ventas_contado': v_contado_dia,
+            'total_recaudado': recaudado_dia,
             'diferencia': diferencia,
             'estado_cuadre': 'CUADRADO' if diferencia == Decimal('0') else ('SOBRANTE' if diferencia > Decimal('0') else 'FALTANTE')
         })
 
-    return render(request, 'finanzas/caja_ruta/lista.html', {'cajas_list': cajas_list})
+    return render(request, 'finanzas/caja_ruta/lista.html', {
+        'cajas_list': cajas_list,
+        'resumen_rutas_mes': resumen_rutas_mes,
+        'mes_filtro': mes_str,
+        'total_general_contado_mes': total_general_contado_mes,
+        'total_general_cobros_mes': total_general_cobros_mes,
+        'total_general_recaudado_mes': total_general_recaudado_mes,
+        'total_general_entregado_mes': total_general_entregado_mes,
+    })
 
 
 @requiere_login
@@ -446,4 +527,41 @@ def caja_ruta_create(request):
     return render(request, 'finanzas/caja_ruta/form.html', {
         'rutas': rutas,
         'fecha_hoy': fecha_hoy
+    })
+
+
+@requiere_login
+@solo_admin
+def ajax_preview_caja_ruta(request):
+    """Devuelve JSON con las ventas contado, cobros y total esperado para la ruta y fecha dada"""
+    from django.http import JsonResponse
+    ruta_id = request.GET.get('ruta_id')
+    fecha_str = request.GET.get('fecha')
+
+    if not ruta_id or not fecha_str:
+        return JsonResponse({'ventas_contado': 0, 'cobros': 0, 'total_esperado': 0})
+
+    try:
+        fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        ruta = Ruta.objects.get(pk=ruta_id)
+    except Exception:
+        return JsonResponse({'ventas_contado': 0, 'cobros': 0, 'total_esperado': 0})
+
+    v_contado = Venta.objects.filter(
+        Q(ruta=ruta) | Q(cliente__ruta=ruta),
+        tipo='CONTADO',
+        created_at__date=fecha_dt
+    ).aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+    cobros = Cobro.objects.filter(
+        Q(venta__ruta=ruta) | Q(venta__cliente__ruta=ruta),
+        created_at__date=fecha_dt
+    ).aggregate(t=Sum('monto'))['t'] or Decimal('0')
+
+    total_esperado = v_contado + cobros
+
+    return JsonResponse({
+        'ventas_contado': float(v_contado),
+        'cobros': float(cobros),
+        'total_esperado': float(total_esperado)
     })

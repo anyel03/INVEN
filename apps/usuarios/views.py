@@ -136,13 +136,7 @@ def dashboard_view(request):
     ).aggregate(t=Sum('total'))['t'] or Decimal('0')
 
     # Saldo real pendiente por cobrar
-    ventas_pendientes = ventas_qs.filter(estado='PENDIENTE')
-    por_cobrar = Decimal('0')
-    for v in ventas_pendientes:
-        cobrado_v = Cobro.objects.filter(venta=v).aggregate(t=Sum('monto'))['t'] or Decimal('0')
-        saldo_v = v.total - cobrado_v
-        if saldo_v > Decimal('0'):
-            por_cobrar += saldo_v
+    por_cobrar = ventas_qs.filter(estado='PENDIENTE').aggregate(t=Sum('saldo'))['t'] or Decimal('0')
 
     # Tablas de actividad reciente
     ultimas_ventas = ventas_qs.select_related('cliente', 'ruta').order_by('-created_at')[:5]

@@ -142,10 +142,6 @@
                                 <span class="badge bg-success bg-opacity-75"><i class="bi bi-cash me-1"></i>Efectivo</span>
                             {% elif c.metodo == 'TRANSFERENCIA' %}
                                 <span class="badge bg-primary bg-opacity-75"><i class="bi bi-bank me-1"></i>Transferencia</span>
-                            {% elif c.metodo == 'YAPE' %}
-                                <span class="badge bg-purple text-white" style="background-color: #6f42c1;"><i class="bi bi-phone me-1"></i>Yape</span>
-                            {% elif c.metodo == 'PLIN' %}
-                                <span class="badge bg-cyan text-dark" style="background-color: #0dcaf0;"><i class="bi bi-phone-vibrate me-1"></i>Plin</span>
                             {% else %}
                                 <span class="badge bg-info">{{ c.metodo }}</span>
                             {% endif %}

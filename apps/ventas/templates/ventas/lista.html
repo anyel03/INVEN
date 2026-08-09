@@ -62,6 +62,7 @@
                         <th>Vendedor</th>
                         {% endif %}
                         <th>Tipo</th>
+                        <th>Próximo Cobro</th>
                         <th>Total</th>
                         <th>Estado</th>
                         <th class="text-end">Acciones</th>
@@ -81,6 +82,21 @@
                         <td>{{ v.usuario.nombre|default:"Sistema" }}</td>
                         {% endif %}
                         <td><span class="badge bg-{% if v.tipo == 'CONTADO' %}success{% else %}warning{% endif %}">{{ v.tipo }}</span></td>
+                        <td>
+                            {% if v.proximo_cobro and v.estado == 'PENDIENTE' %}
+                                {% if v.proximo_cobro < today %}
+                                    <span class="badge bg-danger text-white"><i class="bi bi-exclamation-circle-fill me-1"></i>Pasado: {{ v.proximo_cobro|date:"d/m/Y" }}</span>
+                                {% elif v.proximo_cobro == today %}
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-clock-fill me-1"></i>Cobrar Hoy: {{ v.proximo_cobro|date:"d/m/Y" }}</span>
+                                {% else %}
+                                    <span class="badge bg-success text-white"><i class="bi bi-calendar-check me-1"></i>{{ v.proximo_cobro|date:"d/m/Y" }}</span>
+                                {% endif %}
+                            {% elif v.proximo_cobro %}
+                                <small class="text-muted">{{ v.proximo_cobro|date:"d/m/Y" }}</small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td><strong>${{ v.total }}</strong></td>
                         <td><span class="badge bg-{% if v.estado == 'PAGADA' %}success{% elif v.estado == 'PENDIENTE' %}warning{% else %}danger{% endif %}">{{ v.estado }}</span></td>
                         <td class="text-end">
@@ -91,7 +107,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{% if es_admin %}9{% else %}8{% endif %}" class="text-center text-muted py-4">No se encontraron ventas</td>
+                        <td colspan="{% if es_admin %}10{% else %}9{% endif %}" class="text-center text-muted py-4">No se encontraron ventas</td>
                     </tr>
                     {% endfor %}
                 </tbody>

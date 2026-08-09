@@ -105,7 +105,7 @@
 <!-- SECCIÓN 2: RECAUDACIÓN Y COBROS POR MÉTODO -->
 <h4 class="mb-3 text-white"><i class="bi bi-cash-stack me-2 text-success"></i>Cobros por Método de Pago</h4>
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="col-md-6">
         <div class="card bg-dark border-success text-center">
             <div class="card-body p-3">
                 <i class="bi bi-cash fs-2 text-success"></i>
@@ -114,30 +114,12 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-6">
         <div class="card bg-dark border-primary text-center">
             <div class="card-body p-3">
                 <i class="bi bi-bank fs-2 text-primary"></i>
                 <h6 class="mt-2 text-muted">Transferencia</h6>
                 <h4 class="text-primary mb-0">${{ cobros_transferencia|floatformat:2 }}</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-dark border-purple text-center" style="border-color: #6f42c1 !important;">
-            <div class="card-body p-3">
-                <i class="bi bi-phone fs-2 text-purple" style="color: #6f42c1;"></i>
-                <h6 class="mt-2 text-muted">Yape</h6>
-                <h4 class="mb-0" style="color: #6f42c1;">${{ cobros_yape|floatformat:2 }}</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-dark border-info text-center">
-            <div class="card-body p-3">
-                <i class="bi bi-phone-vibrate fs-2 text-info"></i>
-                <h6 class="mt-2 text-muted">Plin</h6>
-                <h4 class="text-info mb-0">${{ cobros_plin|floatformat:2 }}</h4>
             </div>
         </div>
     </div>

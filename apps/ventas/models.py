@@ -12,9 +12,18 @@ class Venta(models.Model):
         ('CREDITO', 'Crédito'),
     ], default='CONTADO')
     
+    frecuencia_cobro = models.CharField(max_length=15, choices=[
+        ('SEMANAL', 'Semanal'),
+        ('QUINCENAL', 'Quincenal'),
+        ('MENSUAL', 'Mensual'),
+        ('COMPLETO', 'Pago Completo'),
+    ], default='SEMANAL')
+    proximo_cobro = models.DateField(null=True, blank=True)
+    
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     descuento = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=10, decimal_places=2)
+    saldo = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
     estado = models.CharField(max_length=15, choices=[
         ('PENDIENTE', 'Pendiente'),

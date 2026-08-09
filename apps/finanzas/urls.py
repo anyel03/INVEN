@@ -13,4 +13,5 @@ urlpatterns = [
     path('ingresos/<int:pk>/eliminar/', views.ingreso_delete, name='ingreso_delete'),
     path('caja-rutas/', views.caja_ruta_list, name='caja_ruta_list'),
     path('caja-rutas/nueva/', views.caja_ruta_create, name='caja_ruta_create'),
+    path('caja-rutas/ajax-preview/', views.ajax_preview_caja_ruta, name='ajax_preview_caja_ruta'),
 ]

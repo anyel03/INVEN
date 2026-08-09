@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
 from decimal import Decimal
+from datetime import date, timedelta
 
 from .models import Venta, DetalleVenta
 from apps.clientes.models import Cliente
@@ -11,6 +12,19 @@ from apps.rutas.models import Ruta
 
 
 # ==================== HELPERS ====================
+
+def calcular_proximo_cobro(frecuencia, base_date=None):
+    if not base_date:
+        base_date = date.today()
+    if frecuencia == 'SEMANAL':
+        return base_date + timedelta(days=7)
+    elif frecuencia == 'QUINCENAL':
+        return base_date + timedelta(days=15)
+    elif frecuencia == 'MENSUAL':
+        return base_date + timedelta(days=30)
+    elif frecuencia == 'COMPLETO':
+        return base_date
+    return base_date
 
 def requiere_login(view_func):
     def wrapper(request, *args, **kwargs):
@@ -119,7 +133,8 @@ def venta_list(request):
     return render(request, 'ventas/lista.html', {
         'ventas': ventas,
         'search': search,
-        'es_admin': es_admin
+        'es_admin': es_admin,
+        'today': date.today()
     })
 
 
@@ -212,15 +227,21 @@ def venta_create(request):
         if total < Decimal('0'):
             total = Decimal('0')
 
+        frecuencia_cobro = request.POST.get('frecuencia_cobro', 'SEMANAL')
+        proximo_cobro = calcular_proximo_cobro(frecuencia_cobro)
+
         with transaction.atomic():
             venta = Venta.objects.create(
                 cliente_id=cliente_id,
                 usuario_id=request.session['user_id'],
                 ruta_id=ruta_id,
                 tipo=tipo,
+                frecuencia_cobro=frecuencia_cobro,
+                proximo_cobro=proximo_cobro,
                 subtotal=total + descuento,
                 descuento=descuento,
                 total=total,
+                saldo=Decimal('0') if tipo == 'CONTADO' else total,
                 estado='PAGADA' if tipo == 'CONTADO' else 'PENDIENTE',
                 observaciones=observaciones
             )
@@ -379,15 +400,21 @@ def venta_create_con_cliente(request):
         if total < Decimal('0'):
             total = Decimal('0')
 
+        frecuencia_cobro = request.POST.get('frecuencia_cobro', 'SEMANAL')
+        proximo_cobro = calcular_proximo_cobro(frecuencia_cobro)
+
         with transaction.atomic():
             venta = Venta.objects.create(
                 cliente_id=cliente_id,
                 usuario_id=request.session['user_id'],
                 ruta_id=ruta_id,
                 tipo=tipo,
+                frecuencia_cobro=frecuencia_cobro,
+                proximo_cobro=proximo_cobro,
                 subtotal=total + descuento,
                 descuento=descuento,
                 total=total,
+                saldo=Decimal('0') if tipo == 'CONTADO' else total,
                 estado='PAGADA' if tipo == 'CONTADO' else 'PENDIENTE',
                 observaciones=observaciones
             )
@@ -424,7 +451,7 @@ def venta_detalle(request, pk):
     )
     detalles = DetalleVenta.objects.filter(
         venta=venta).select_related('producto')
-    return render(request, 'ventas/detalle.html', {'venta': venta, 'detalles': detalles})
+    return render(request, 'ventas/detalle.html', {'venta': venta, 'detalles': detalles, 'today': date.today()})
 
 
 @requiere_login

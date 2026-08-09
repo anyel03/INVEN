@@ -176,10 +176,15 @@ def cobro_create(request):
                 observacion=observacion
             )
 
-            nuevo_cobrado = cobros_anteriores + monto
-            if nuevo_cobrado >= venta_objetivo.total:
+            venta_objetivo.saldo = max(Decimal('0'), venta_objetivo.saldo - monto)
+            if venta_objetivo.saldo <= Decimal('0'):
                 venta_objetivo.estado = 'PAGADA'
-                venta_objetivo.save()
+                venta_objetivo.saldo = Decimal('0')
+                venta_objetivo.proximo_cobro = None
+            else:
+                from apps.ventas.views import calcular_proximo_cobro
+                venta_objetivo.proximo_cobro = calcular_proximo_cobro(venta_objetivo.frecuencia_cobro)
+            venta_objetivo.save()
 
         messages.success(request, f'Cobro de ${monto} registrado exitosamente para {cliente.nombre} (Venta #{venta_objetivo.id}).')
         return redirect('cobro_list')
@@ -218,6 +223,9 @@ def cobro_create(request):
             clientes_dict[c_doc]['ventas'].append({
                 'id': v.id,
                 'fecha': v.created_at.strftime('%d/%m/%Y %H:%M') if v.created_at else '',
+                'frecuencia': v.get_frecuencia_cobro_display(),
+                'proximo_cobro': v.proximo_cobro.strftime('%d/%m/%Y') if v.proximo_cobro else 'Sin fecha',
+                'proximo_cobro_iso': v.proximo_cobro.strftime('%Y-%m-%d') if v.proximo_cobro else '',
                 'total': float(v.total),
                 'cobrado': float(cobrado),
                 'pendiente': float(pendiente)
@@ -225,17 +233,20 @@ def cobro_create(request):
 
     clientes_json = json.dumps(list(clientes_dict.values()))
 
+    from datetime import date
     return render(request, 'cobros/form.html', {
         'clientes_json': clientes_json,
         'clientes_list': list(clientes_dict.values()),
         'es_admin': es_admin,
-        'ruta_nombre': getattr(empleado.ruta, 'nombre', 'N/A') if (empleado and empleado.ruta) else ('Todas' if es_admin else 'Sin Ruta')
+        'ruta_nombre': getattr(empleado.ruta, 'nombre', 'N/A') if (empleado and empleado.ruta) else ('Todas' if es_admin else 'Sin Ruta'),
+        'today_iso': date.today().strftime('%Y-%m-%d')
     })
 
 
 @requiere_login
 def cobros_pendientes(request):
     """Listado detallado de ventas a crédito con saldo pendiente por cobrar"""
+    from datetime import date
     user_id = request.session.get('user_id')
     rol_nombre = request.session.get('rol_nombre')
     es_admin = (rol_nombre == 'ADMIN')
@@ -247,7 +258,7 @@ def cobros_pendientes(request):
     ventas_qs = Venta.objects.filter(
         tipo='CREDITO',
         estado='PENDIENTE'
-    ).select_related('cliente', 'ruta', 'cliente__ruta', 'usuario').order_by('-created_at')
+    ).select_related('cliente', 'ruta', 'cliente__ruta', 'usuario').order_by('proximo_cobro', '-created_at')
 
     if not es_admin:
         if ruta_id:
@@ -270,13 +281,12 @@ def cobros_pendientes(request):
     total_ventas_bruto = Decimal('0')
 
     for v in ventas_qs:
-        cobrado_sum = Cobro.objects.filter(venta=v).aggregate(t=models.Sum('monto'))['t'] or Decimal('0')
-        saldo = v.total - cobrado_sum
-        if saldo > Decimal('0'):
+        if v.saldo > Decimal('0'):
+            cobrado_sum = Cobro.objects.filter(venta=v).aggregate(t=models.Sum('monto'))['t'] or Decimal('0')
             v.cobrado = cobrado_sum
-            v.saldo_pendiente = saldo
+            v.saldo_pendiente = v.saldo
             pendientes.append(v)
-            total_deuda_pendiente += saldo
+            total_deuda_pendiente += v.saldo
             total_cobrado_acumulado += cobrado_sum
             total_ventas_bruto += v.subtotal
 
@@ -292,6 +302,7 @@ def cobros_pendientes(request):
         'search': search,
         'ruta_filtro': ruta_filtro,
         'es_admin': es_admin,
-        'ruta_nombre': ruta_nombre
+        'ruta_nombre': ruta_nombre,
+        'today': date.today()
     })
 
