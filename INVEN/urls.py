@@ -11,3 +11,8 @@ urlpatterns = [
     path('cobros/', include('apps.cobros.urls')),
     path('finanzas/', include('apps.finanzas.urls')),
 ]
+
+handler404 = 'INVEN.views.error_404'
+handler500 = 'INVEN.views.error_500'
+handler403 = 'INVEN.views.error_403'
+handler400 = 'INVEN.views.error_400'

@@ -17,6 +17,14 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary no-print">
     <h1 class="h3 mb-0"><i class="bi bi-receipt me-2"></i>Comprobante de Venta #{{ venta.id }}</h1>
     <div>
+        {% if request.session.rol_nombre == 'ADMIN' %}
+        <a href="{% url 'venta_edit' venta.id %}" class="btn btn-warning me-2">
+            <i class="bi bi-pencil me-1"></i>Editar Venta
+        </a>
+        <a href="{% url 'venta_delete' venta.id %}" class="btn btn-outline-danger me-2">
+            <i class="bi bi-trash me-1"></i>Eliminar Venta
+        </a>
+        {% endif %}
         <button onclick="window.print()" class="btn btn-outline-light me-2">
             <i class="bi bi-printer me-1"></i>Imprimir Comprobante
         </button>

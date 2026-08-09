@@ -50,9 +50,36 @@ def get_decimal(value):
 @requiere_login
 @solo_admin
 def dashboard(request):
-    """Dashboard financiero integral con filtros de fecha"""
+    """Dashboard financiero integral con filtro automático del mes actual y consulta de historial"""
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+
     fecha_inicio_str = request.GET.get('fecha_inicio', '').strip()
     fecha_fin_str = request.GET.get('fecha_fin', '').strip()
+    mes_str = request.GET.get('mes', '').strip()
+    modo = request.GET.get('modo', '').strip()
+
+    # Filtro dinámico si se selecciona un mes completo YYYY-MM
+    if mes_str:
+        try:
+            year, month = map(int, mes_str.split('-'))
+            f_ini = datetime(year, month, 1)
+            if month == 12:
+                f_fin = datetime(year + 1, 1, 1) - timezone.timedelta(seconds=1)
+            else:
+                f_fin = datetime(year, month + 1, 1) - timezone.timedelta(seconds=1)
+            fecha_inicio_str = f_ini.strftime('%Y-%m-%d')
+            fecha_fin_str = f_fin.strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+
+    # Por defecto: al pasar a un nuevo mes se inicia automáticamente en el 1er día del mes actual sin eliminar registros de la BD
+    es_mes_actual_default = False
+    if not fecha_inicio_str and modo != 'todo':
+        inicio_mes = datetime(now.year, now.month, 1)
+        fecha_inicio_str = inicio_mes.strftime('%Y-%m-%d')
+        mes_str = now.strftime('%Y-%m')
+        es_mes_actual_default = True
 
     ventas_qs = Venta.objects.all()
     cobros_qs = Cobro.objects.all()
@@ -98,14 +125,14 @@ def dashboard(request):
     # Compras e Ingresos
     compras_total = get_decimal(compras_qs.aggregate(t=Sum('total'))['t'])
     ingresos_extra = get_decimal(ingresos_qs.aggregate(t=Sum('monto'))['t'])
+    # Liquidez Disponible (Dinero real en caja/banco = Ventas de Contado + Cobros Recaudados + Ingresos Extra - Compras Realizadas)
+    liquidez = (ventas_contado + cobros_total + ingresos_extra) - compras_total
 
-    # Liquidez Disponible
-    liquidez = (cobros_total + ingresos_extra) - compras_total
-
-    # Cálculo de Ganancias
-    ingresos_ventas = sum(get_decimal(d.subtotal) for d in detalles_qs)
+    # Cálculo de Ganancias y Rendimiento
     costos_ventas = sum(get_decimal(getattr(d.producto, 'precio_compra', Decimal('0'))) * d.cantidad for d in detalles_qs)
-    ganancias = ingresos_ventas - costos_ventas
+    ganancia_bruta = ventas_total - costos_ventas
+    ganancia_neta = (ventas_total + ingresos_extra) - costos_ventas
+    margen_ganancia = (ganancia_bruta / ventas_total * Decimal('100')) if ventas_total > Decimal('0') else Decimal('0')
 
     # Métricas de Inventario
     productos_total = Producto.objects.count()
@@ -116,9 +143,30 @@ def dashboard(request):
     caja_rutas = CajaRuta.objects.all().select_related('ruta')[:10]
     total_caja_rutas = sum(get_decimal(c.total_ventas) for c in caja_rutas)
 
+    # Métricas del Día de Hoy
+    inicio_hoy = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    fin_hoy = inicio_hoy + timezone.timedelta(days=1)
+
+    ventas_contado_hoy = get_decimal(Venta.objects.filter(tipo='CONTADO', created_at__gte=inicio_hoy, created_at__lt=fin_hoy).aggregate(t=Sum('total'))['t'])
+    cobros_hoy = get_decimal(Cobro.objects.filter(created_at__gte=inicio_hoy, created_at__lt=fin_hoy).aggregate(t=Sum('monto'))['t'])
+    ingresos_hoy = ventas_contado_hoy + cobros_hoy
+
+    ventas_cobro_hoy = Venta.objects.filter(estado='PENDIENTE', proximo_cobro__lte=today)
+    por_cobrar_hoy = get_decimal(ventas_cobro_hoy.aggregate(t=Sum('saldo'))['t'])
+    cobros_hoy_count = ventas_cobro_hoy.count()
+
     context = {
         'fecha_inicio': fecha_inicio_str,
         'fecha_fin': fecha_fin_str,
+        'mes_filtro': mes_str,
+        'modo': modo,
+        'es_mes_actual_default': es_mes_actual_default,
+        'today': today,
+        'ingresos_hoy': ingresos_hoy,
+        'ventas_contado_hoy': ventas_contado_hoy,
+        'cobros_hoy': cobros_hoy,
+        'por_cobrar_hoy': por_cobrar_hoy,
+        'cobros_hoy_count': cobros_hoy_count,
         'ventas_subtotal': ventas_subtotal,
         'ventas_descuento': ventas_descuento,
         'ventas_total': ventas_total,
@@ -131,9 +179,11 @@ def dashboard(request):
         'compras_total': compras_total,
         'ingresos_extra': ingresos_extra,
         'liquidez': liquidez,
-        'ingresos': ingresos_ventas,
+        'ingresos': ventas_total,
         'costos': costos_ventas,
-        'ganancias': ganancias,
+        'ganancias': ganancia_bruta,
+        'ganancia_neta': ganancia_neta,
+        'margen_ganancia': margen_ganancia,
         'productos_total': productos_total,
         'productos_sin_stock': productos_sin_stock,
         'productos_bajo_stock': productos_bajo_stock,
@@ -218,13 +268,39 @@ def reporte_ventas(request):
 @requiere_login
 @solo_admin
 def compra_list(request):
-    """Lista de compras realizadas"""
-    compras = Compra.objects.all().order_by('-fecha')
+    """Lista de compras realizadas con filtros por proveedor y fecha"""
+    search = request.GET.get('search', '').strip()
+    fecha_inicio_str = request.GET.get('fecha_inicio', '').strip()
+    fecha_fin_str = request.GET.get('fecha_fin', '').strip()
+
+    compras_qs = Compra.objects.all().order_by('-fecha')
+
+    if search:
+        compras_qs = compras_qs.filter(
+            Q(proveedor__icontains=search) | Q(id__icontains=search)
+        )
+    if fecha_inicio_str:
+        try:
+            f_ini = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
+            compras_qs = compras_qs.filter(fecha__gte=f_ini)
+        except ValueError:
+            pass
+    if fecha_fin_str:
+        try:
+            f_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            compras_qs = compras_qs.filter(fecha__lte=f_fin)
+        except ValueError:
+            pass
+
+    compras = list(compras_qs)
     total_compras = sum((c.total for c in compras), Decimal('0'))
 
     return render(request, 'finanzas/compras/lista.html', {
         'compras': compras,
-        'total_compras': total_compras
+        'total_compras': total_compras,
+        'search': search,
+        'fecha_inicio': fecha_inicio_str,
+        'fecha_fin': fecha_fin_str,
     })
 
 
@@ -232,6 +308,8 @@ def compra_list(request):
 @solo_admin
 def compra_create(request):
     """Crear nueva compra a proveedor"""
+    from django.db import transaction
+
     if request.method == 'POST':
         proveedor = request.POST.get('proveedor', '').strip()
 
@@ -265,34 +343,35 @@ def compra_create(request):
             messages.error(request, 'Ingresa productos con cantidades y precios válidos.')
             return redirect('compra_create')
 
-        total = Decimal('0')
-        compra = Compra.objects.create(proveedor=proveedor, total=Decimal('0'))
+        with transaction.atomic():
+            total = Decimal('0')
+            compra = Compra.objects.create(proveedor=proveedor, total=Decimal('0'))
 
-        for p_id, cantidad, precio in items_validos:
-            try:
-                producto = Producto.objects.get(pk=p_id)
-                subtotal = precio * cantidad
-                total += subtotal
+            for p_id, cantidad, precio in items_validos:
+                try:
+                    producto = Producto.objects.select_for_update().get(pk=p_id)
+                    subtotal = precio * cantidad
+                    total += subtotal
 
-                DetalleCompra.objects.create(
-                    compra=compra,
-                    producto=producto,
-                    cantidad=cantidad,
-                    precio=precio
-                )
+                    DetalleCompra.objects.create(
+                        compra=compra,
+                        producto=producto,
+                        cantidad=cantidad,
+                        precio=precio
+                    )
 
-                # Incrementar stock principal y actualizar precio de compra
-                producto.stock_principal += cantidad
-                if precio > Decimal('0'):
-                    producto.precio_compra = precio
-                producto.save()
-            except Producto.DoesNotExist:
-                pass
+                    # Incrementar stock principal y actualizar precio de compra
+                    producto.stock_principal += cantidad
+                    if precio > Decimal('0'):
+                        producto.precio_compra = precio
+                    producto.save()
+                except Producto.DoesNotExist:
+                    pass
 
-        compra.total = total
-        compra.save()
+            compra.total = total
+            compra.save()
 
-        messages.success(request, f'Compra #{compra.id} a "{proveedor}" por ${total|floatformat:2} guardada correctamente.')
+        messages.success(request, f'Compra #{compra.id} a "{proveedor}" por ${total:.2f} guardada correctamente.')
         return redirect('compra_list')
 
     productos = Producto.objects.all().order_by('nombre')

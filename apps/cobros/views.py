@@ -254,11 +254,23 @@ def cobros_pendientes(request):
 
     search = request.GET.get('search', '').strip()
     ruta_filtro = request.GET.get('ruta_id', '').strip()
+    color_filtro = request.GET.get('color', '').strip().upper()
+
+    today = date.today()
 
     ventas_qs = Venta.objects.filter(
         tipo='CREDITO',
         estado='PENDIENTE'
-    ).select_related('cliente', 'ruta', 'cliente__ruta', 'usuario').order_by('proximo_cobro', '-created_at')
+    ).select_related('cliente', 'ruta', 'cliente__ruta', 'usuario')
+
+    if color_filtro == 'ROJO':
+        ventas_qs = ventas_qs.filter(proximo_cobro__isnull=False, proximo_cobro__lt=today)
+    elif color_filtro == 'NARANJA':
+        ventas_qs = ventas_qs.filter(proximo_cobro=today)
+    elif color_filtro == 'VERDE':
+        ventas_qs = ventas_qs.filter(proximo_cobro__gt=today)
+
+    ventas_qs = ventas_qs.order_by('proximo_cobro', '-created_at')
 
     if not es_admin:
         if ruta_id:
@@ -301,8 +313,9 @@ def cobros_pendientes(request):
         'rutas': rutas,
         'search': search,
         'ruta_filtro': ruta_filtro,
+        'color_filtro': color_filtro,
         'es_admin': es_admin,
         'ruta_nombre': ruta_nombre,
-        'today': date.today()
+        'today': today
     })
 

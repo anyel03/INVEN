@@ -62,19 +62,19 @@
 <div class="card bg-dark border-secondary mb-4 shadow-sm">
     <div class="card-body p-3">
         <form method="get" class="row g-2 align-items-center">
-            <div class="col-md-{% if es_admin %}6{% else %}10{% endif %}">
+            <div class="col-md-{% if es_admin %}4{% else %}6{% endif %}">
                 <div class="input-group">
                     <span class="input-group-text bg-secondary border-secondary text-white"><i class="bi bi-search"></i></span>
                     <input type="text" 
                            name="search" 
                            class="form-control bg-dark text-white border-secondary" 
-                           placeholder="Buscar por cédula, nombre de cliente o # de venta..." 
+                           placeholder="Buscar por cédula, nombre o # venta..." 
                            value="{{ search }}">
                 </div>
             </div>
 
             {% if es_admin %}
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <select name="ruta_id" class="form-select bg-dark text-white border-secondary">
                     <option value="">Todas las rutas</option>
                     {% for r in rutas %}
@@ -84,10 +84,19 @@
             </div>
             {% endif %}
 
+            <div class="col-md-3">
+                <select name="color" class="form-select bg-dark text-white border-secondary" onchange="this.form.submit()">
+                    <option value="">Todos los Estados (Colores)</option>
+                    <option value="ROJO" {% if color_filtro == 'ROJO' %}selected{% endif %}>🔴 Rojo (Vencidos / Pasados)</option>
+                    <option value="NARANJA" {% if color_filtro == 'NARANJA' %}selected{% endif %}>🟠 Naranja (Cobrar Hoy)</option>
+                    <option value="VERDE" {% if color_filtro == 'VERDE' %}selected{% endif %}>🟢 Verde (Próximos / Futuros)</option>
+                </select>
+            </div>
+
             <div class="col-md-2 d-flex gap-1">
                 <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Filtrar</button>
-                {% if search or ruta_filtro %}
-                <a href="{% url 'cobros_pendientes' %}" class="btn btn-outline-secondary" title="Limpiar"><i class="bi bi-x-lg"></i></a>
+                {% if search or ruta_filtro or color_filtro %}
+                <a href="{% url 'cobros_pendientes' %}" class="btn btn-outline-secondary" title="Limpiar Filtros"><i class="bi bi-x-lg"></i></a>
                 {% endif %}
             </div>
         </form>

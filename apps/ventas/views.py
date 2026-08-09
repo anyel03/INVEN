@@ -34,6 +34,17 @@ def requiere_login(view_func):
     return wrapper
 
 
+def solo_admin(view_func):
+    def wrapper(request, *args, **kwargs):
+        if not request.session.get('user_id'):
+            return redirect('login')
+        if request.session.get('rol_nombre') != 'ADMIN':
+            messages.error(request, 'Solo el Administrador puede realizar esta acción.')
+            return redirect('venta_list')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 def _get_empleado_info(user_id):
     """Devuelve (empleado, ruta_id) para un usuario de tipo empleado."""
     from apps.usuarios.models import Empleado
@@ -478,3 +489,209 @@ def ajax_stock_por_ruta(request):
 
     from django.http import JsonResponse
     return JsonResponse({'stocks': stock_por_producto})
+
+
+@requiere_login
+@solo_admin
+def venta_edit(request, pk):
+    """Editar una venta existente (solo ADMINISTRADOR)"""
+    venta = get_object_or_404(
+        Venta.objects.select_related('cliente', 'ruta'), pk=pk
+    )
+    detalles_existentes = DetalleVenta.objects.filter(venta=venta).select_related('producto')
+
+    if request.method == 'POST':
+        cliente_id = request.POST.get('cliente_id')
+        ruta_id_raw = request.POST.get('ruta_id')
+        tipo = request.POST.get('tipo', 'CONTADO')
+        frecuencia_cobro = request.POST.get('frecuencia_cobro', 'SEMANAL')
+        descuento = Decimal(request.POST.get('descuento', '0') or '0')
+        observaciones = request.POST.get('observaciones', '').strip()
+
+        producto_ids = request.POST.getlist('producto_id[]')
+        cantidades = request.POST.getlist('cantidad[]')
+
+        if not cliente_id:
+            messages.error(request, 'Selecciona un cliente.')
+            return redirect('venta_edit', pk=pk)
+
+        try:
+            ruta_id = int(ruta_id_raw) if ruta_id_raw else (venta.ruta_id or 1)
+        except (TypeError, ValueError):
+            messages.error(request, 'Ruta inválida.')
+            return redirect('venta_edit', pk=pk)
+
+        pares_validos = []
+        for i, prod_id in enumerate(producto_ids):
+            if not prod_id:
+                continue
+            cant = cantidades[i] if i < len(cantidades) else '0'
+            try:
+                cant_int = int(cant)
+            except (TypeError, ValueError):
+                cant_int = 0
+            if cant_int > 0:
+                pares_validos.append((prod_id, cant_int))
+
+        if not pares_validos:
+            messages.error(request, 'Agrega al menos un producto con cantidad mayor a 0.')
+            return redirect('venta_edit', pk=pk)
+
+        try:
+            with transaction.atomic():
+                # 1. Devolver el stock actual del inventario de la ruta antes de editar
+                old_ruta_id = venta.ruta_id or ruta_id
+                for d in detalles_existentes:
+                    inv_old, _ = InventarioRuta.objects.get_or_create(
+                        ruta_id=old_ruta_id,
+                        producto=d.producto,
+                        defaults={'cantidad': 0}
+                    )
+                    inv_old.cantidad += d.cantidad
+                    inv_old.save()
+
+                # 2. Verificar y descontar el nuevo stock en la ruta seleccionada
+                detalles_nuevos = []
+                subtotal_acum = Decimal('0')
+
+                for prod_id, cantidad in pares_validos:
+                    producto = Producto.objects.get(pk=prod_id)
+                    inv_ruta = InventarioRuta.objects.filter(
+                        ruta_id=ruta_id, producto_id=prod_id).first()
+                    stock_disp = inv_ruta.cantidad if inv_ruta else 0
+
+                    if cantidad > stock_disp:
+                        messages.error(
+                            request, f'Stock insuficiente para {producto.nombre}. Stock disponible en ruta: {stock_disp}'
+                        )
+                        raise ValueError(f'Stock insuficiente para {producto.nombre}')
+
+                    subtotal_item = producto.precio_venta * cantidad
+                    subtotal_acum += subtotal_item
+                    detalles_nuevos.append({
+                        'producto': producto,
+                        'cantidad': cantidad,
+                        'precio': producto.precio_venta,
+                        'subtotal': subtotal_item,
+                        'inv_ruta': inv_ruta
+                    })
+
+                total_nuevo = max(Decimal('0'), subtotal_acum - descuento)
+
+                # 3. Eliminar los detalles anteriores y crear los nuevos
+                DetalleVenta.objects.filter(venta=venta).delete()
+
+                for det in detalles_nuevos:
+                    DetalleVenta.objects.create(
+                        venta=venta,
+                        producto=det['producto'],
+                        cantidad=det['cantidad'],
+                        precio=det['precio'],
+                        subtotal=det['subtotal']
+                    )
+                    inv_r = det['inv_ruta']
+                    inv_r.cantidad -= det['cantidad']
+                    if inv_r.cantidad <= 0:
+                        inv_r.delete()
+                    else:
+                        inv_r.save()
+
+                # 4. Recalcular saldo y estado considerando cobros realizados
+                total_cobrado = Cobro.objects.filter(venta=venta).aggregate(t=Sum('monto'))['t'] or Decimal('0')
+
+                if tipo == 'CONTADO':
+                    saldo_nuevo = Decimal('0')
+                    estado_nuevo = 'PAGADA'
+                    proximo_cobro_nuevo = None
+                else:
+                    saldo_nuevo = max(Decimal('0'), total_nuevo - total_cobrado)
+                    if saldo_nuevo == Decimal('0'):
+                        estado_nuevo = 'PAGADA'
+                        proximo_cobro_nuevo = None
+                    else:
+                        estado_nuevo = 'PENDIENTE'
+                        proximo_cobro_nuevo = venta.proximo_cobro or calcular_proximo_cobro(frecuencia_cobro)
+
+                # 5. Actualizar la Venta
+                venta.cliente_id = cliente_id
+                venta.ruta_id = ruta_id
+                venta.tipo = tipo
+                venta.frecuencia_cobro = frecuencia_cobro
+                venta.proximo_cobro = proximo_cobro_nuevo
+                venta.subtotal = subtotal_acum
+                venta.descuento = descuento
+                venta.total = total_nuevo
+                venta.saldo = saldo_nuevo
+                venta.estado = estado_nuevo
+                venta.observaciones = observaciones
+                venta.save()
+
+            messages.success(request, f'Venta #{venta.id} modificada correctamente.')
+            return redirect('venta_detalle', pk=venta.id)
+
+        except ValueError:
+            return redirect('venta_edit', pk=pk)
+
+    # Contexto para vista GET
+    clientes = Cliente.objects.all().order_by('nombre')
+    rutas = Ruta.objects.all().order_by('nombre')
+    productos = Producto.objects.all().order_by('nombre')
+
+    # Diccionario de cantidades actuales por producto
+    cantidades_actuales = {d.producto_id: d.cantidad for d in detalles_existentes}
+
+    # Stock en ruta para la plantilla
+    ruta_id_actual = venta.ruta_id
+    stock_por_producto = {}
+    if ruta_id_actual:
+        inventarios = InventarioRuta.objects.filter(ruta_id=ruta_id_actual)
+        for inv in inventarios:
+            cant_reservada = cantidades_actuales.get(inv.producto_id, 0)
+            stock_por_producto[inv.producto_id] = inv.cantidad + cant_reservada
+
+    return render(request, 'ventas/form_edit.html', {
+        'venta': venta,
+        'detalles_existentes': detalles_existentes,
+        'cantidades_actuales': cantidades_actuales,
+        'clientes': clientes,
+        'rutas': rutas,
+        'productos': productos,
+        'stock_por_producto': stock_por_producto,
+        'es_admin': True,
+        'today': date.today()
+    })
+
+
+@requiere_login
+@solo_admin
+def venta_delete(request, pk):
+    """Eliminar una venta y restaurar el stock al inventario de la ruta (solo ADMINISTRADOR)"""
+    venta = get_object_or_404(Venta, pk=pk)
+
+    if request.method == 'POST':
+        venta_id = venta.id
+        ruta_id = venta.ruta_id
+
+        with transaction.atomic():
+            detalles = DetalleVenta.objects.filter(venta=venta).select_related('producto')
+
+            # 1. Restaurar stock al inventario de la ruta
+            if ruta_id:
+                for d in detalles:
+                    inv_ruta, _ = InventarioRuta.objects.get_or_create(
+                        ruta_id=ruta_id,
+                        producto=d.producto,
+                        defaults={'cantidad': 0}
+                    )
+                    inv_ruta.cantidad += d.cantidad
+                    inv_ruta.save()
+
+            # 2. Eliminar cobros asociados y la venta
+            Cobro.objects.filter(venta=venta).delete()
+            detalles.delete()
+            venta.delete()
+
+        messages.success(request, f'Venta #{venta_id} eliminada correctamente. El stock fue restaurado al inventario de la ruta.')
+        return redirect('venta_list')
+
+    return render(request, 'ventas/confirmar_eliminar.html', {'venta': venta})

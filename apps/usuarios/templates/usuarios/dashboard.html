@@ -40,60 +40,101 @@
 </div>
 
 <!-- ==================== ESTADÍSTICAS ==================== -->
-<h4 class="mb-3"><i class="bi bi-bar-chart me-2"></i>Resumen {% if not es_admin %}(Ruta {{ ruta_nombre }}){% endif %}</h4>
+<!-- ==================== HIGHLIGHT: OPERACIÓN DEL DÍA ==================== -->
+<h4 class="mb-3 text-white"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i>Operación del Día ({{ today|date:"d/m/Y" }})</h4>
+<div class="row mb-4 g-3">
+    <!-- Ingresos del Día -->
+    <div class="col-md-6">
+        <div class="card stat-card bg-success text-white h-100 shadow-sm border-0">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-white-50 text-uppercase fw-bold small">Ingresos Recaudados Hoy</span>
+                    <h1 class="display-5 fw-bold mb-1">${{ ingresos_hoy|floatformat:2 }}</h1>
+                    <div class="small text-white-50 mt-1">
+                        <span class="badge bg-dark text-white me-1">Contado: ${{ ventas_hoy_contado|floatformat:2 }}</span>
+                        <span class="badge bg-dark text-white">Cobros: ${{ cobros_hoy|floatformat:2 }}</span>
+                    </div>
+                </div>
+                <i class="bi bi-cash-coin display-3 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Por Cobrar del Día -->
+    <div class="col-md-6">
+        <div class="card stat-card bg-warning text-dark h-100 shadow-sm border-0">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-dark-50 text-uppercase fw-bold small">Por Cobrar del Día (Programados / Hoy)</span>
+                    <h1 class="display-5 fw-bold mb-1 text-dark">${{ por_cobrar_hoy|floatformat:2 }}</h1>
+                    <div class="small text-dark-50 mt-1 d-flex align-items-center gap-2">
+                        <span><i class="bi bi-person-exclamation me-1"></i>{{ cobros_hoy_count }} cliente(s) por cobrar a la fecha</span>
+                        <a href="{% url 'cobros_pendientes' %}" class="btn btn-sm btn-dark text-warning font-weight-bold">
+                            Ver Lista <i class="bi bi-arrow-right me-1"></i>
+                        </a>
+                    </div>
+                </div>
+                <i class="bi bi-clock-history display-3 opacity-50 text-dark"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== RESUMEN GENERAL ==================== -->
+<h4 class="mb-3"><i class="bi bi-bar-chart me-2"></i>Resumen General {% if not es_admin %}(Ruta {{ ruta_nombre }}){% endif %}</h4>
 <div class="row mb-4">
     <!-- Rutas / Ámbito -->
     <div class="col-md-3 mb-3">
-        <div class="card stat-card bg-primary text-white h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
+        <div class="card stat-card bg-dark border-primary text-white h-100 shadow-sm">
+            <div class="card-body p-3 d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-white-50 mb-1">{% if es_admin %}Rutas{% else %}Ruta Asignada{% endif %}</h6>
-                    <h3 class="mb-0 fw-bold">{% if es_admin %}{{ rutas_count }}{% else %}{{ ruta_nombre }}{% endif %}</h3>
-                    <small class="text-white-50">{% if es_admin %}Activas{% else %}En operación{% endif %}</small>
+                    <h6 class="text-muted mb-1">{% if es_admin %}Rutas{% else %}Ruta Asignada{% endif %}</h6>
+                    <h3 class="mb-0 fw-bold text-primary">{% if es_admin %}{{ rutas_count }}{% else %}{{ ruta_nombre }}{% endif %}</h3>
+                    <small class="text-muted">{% if es_admin %}Activas{% else %}En operación{% endif %}</small>
                 </div>
-                <i class="bi bi-geo-alt fs-1 opacity-50"></i>
+                <i class="bi bi-geo-alt fs-1 text-primary opacity-50"></i>
             </div>
         </div>
     </div>
     
     <!-- Clientes -->
     <div class="col-md-3 mb-3">
-        <div class="card stat-card bg-success text-white h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
+        <div class="card stat-card bg-dark border-success text-white h-100 shadow-sm">
+            <div class="card-body p-3 d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-white-50 mb-1">Clientes</h6>
-                    <h2 class="mb-0 fw-bold">{{ clientes_count }}</h2>
-                    <small class="text-white-50">{% if es_admin %}En total{% else %}En tu ruta{% endif %}</small>
+                    <h6 class="text-muted mb-1">Clientes</h6>
+                    <h2 class="mb-0 fw-bold text-success">{{ clientes_count }}</h2>
+                    <small class="text-muted">{% if es_admin %}En total{% else %}En tu ruta{% endif %}</small>
                 </div>
-                <i class="bi bi-people fs-1 opacity-50"></i>
+                <i class="bi bi-people fs-1 text-success opacity-50"></i>
             </div>
         </div>
     </div>
     
-    <!-- Ventas Hoy (Subtotal) -->
+    <!-- Ventas Totales Generadas Hoy -->
     <div class="col-md-3 mb-3">
-        <div class="card stat-card bg-warning text-dark h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
+        <div class="card stat-card bg-dark border-warning text-white h-100 shadow-sm">
+            <div class="card-body p-3 d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-dark-50 mb-1">Subtotal Ventas Hoy</h6>
-                    <h2 class="mb-0 fw-bold">${{ ventas_hoy|floatformat:2 }}</h2>
-                    <small class="text-dark-50">{% if es_admin %}Global{% else %}En tu ruta{% endif %} (Neta: ${{ ventas_hoy_netas|floatformat:2 }})</small>
+                    <h6 class="text-muted mb-1">Ventas Generadas Hoy</h6>
+                    <h2 class="mb-0 fw-bold text-warning">${{ ventas_hoy_total|floatformat:2 }}</h2>
+                    <small class="text-muted">Contado: ${{ ventas_hoy_contado|floatformat:2 }} | Crédito: ${{ ventas_hoy_credito|floatformat:2 }}</small>
                 </div>
-                <i class="bi bi-cart fs-1 opacity-50"></i>
+                <i class="bi bi-cart fs-1 text-warning opacity-50"></i>
             </div>
         </div>
     </div>
     
-    <!-- Por Cobrar -->
+    <!-- Por Cobrar Total Acumulado -->
     <div class="col-md-3 mb-3">
-        <div class="card stat-card bg-info text-white h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
+        <div class="card stat-card bg-dark border-info text-white h-100 shadow-sm">
+            <div class="card-body p-3 d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-white-50 mb-1">Por Cobrar</h6>
-                    <h2 class="mb-0 fw-bold">${{ por_cobrar|floatformat:2 }}</h2>
-                    <small class="text-white-50">{% if es_admin %}Global pendiente{% else %}Pendiente en tu ruta{% endif %}</small>
+                    <h6 class="text-muted mb-1">Por Cobrar Acumulado Total</h6>
+                    <h2 class="mb-0 fw-bold text-info">${{ por_cobrar_total|floatformat:2 }}</h2>
+                    <small class="text-muted">Saldo global pendiente</small>
                 </div>
-                <i class="bi bi-cash-stack fs-1 opacity-50"></i>
+                <i class="bi bi-cash-stack fs-1 text-info opacity-50"></i>
             </div>
         </div>
     </div>

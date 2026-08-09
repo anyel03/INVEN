@@ -124,19 +124,46 @@ def dashboard_view(request):
 
     clientes_count = clientes_qs.count()
 
-    # Ventas de hoy (Subtotal bruto y Total neto)
-    ventas_hoy_subtotal = ventas_qs.filter(
-        created_at__gte=inicio_hoy, 
-        created_at__lt=fin_hoy
-    ).aggregate(t=Sum('subtotal'))['t'] or Decimal('0')
+    # Fechas de hoy
+    today = now.date()
 
-    ventas_hoy_netas = ventas_qs.filter(
+    # Ventas de hoy
+    ventas_hoy_contado = ventas_qs.filter(
+        created_at__gte=inicio_hoy, 
+        created_at__lt=fin_hoy,
+        tipo='CONTADO'
+    ).aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+    ventas_hoy_credito = ventas_qs.filter(
+        created_at__gte=inicio_hoy, 
+        created_at__lt=fin_hoy,
+        tipo='CREDITO'
+    ).aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+    ventas_hoy_total = ventas_qs.filter(
         created_at__gte=inicio_hoy, 
         created_at__lt=fin_hoy
     ).aggregate(t=Sum('total'))['t'] or Decimal('0')
 
-    # Saldo real pendiente por cobrar
-    por_cobrar = ventas_qs.filter(estado='PENDIENTE').aggregate(t=Sum('saldo'))['t'] or Decimal('0')
+    # Cobros / Abonos recaudados hoy
+    cobros_hoy = cobros_qs.filter(
+        created_at__gte=inicio_hoy, 
+        created_at__lt=fin_hoy
+    ).aggregate(t=Sum('monto'))['t'] or Decimal('0')
+
+    # INGRESOS DEL DÍA (Efectivo/Transferencia real recolectado hoy = Contado + Cobros)
+    ingresos_hoy = ventas_hoy_contado + cobros_hoy
+
+    # LO QUE HAY POR COBRAR DEL DÍA (Ventas pendientes programadas para hoy o vencidas)
+    ventas_cobro_hoy = ventas_qs.filter(
+        estado='PENDIENTE',
+        proximo_cobro__lte=today
+    )
+    por_cobrar_hoy = ventas_cobro_hoy.aggregate(t=Sum('saldo'))['t'] or Decimal('0')
+    cobros_hoy_count = ventas_cobro_hoy.count()
+
+    # Saldo acumulado total por cobrar
+    por_cobrar_total = ventas_qs.filter(estado='PENDIENTE').aggregate(t=Sum('saldo'))['t'] or Decimal('0')
 
     # Tablas de actividad reciente
     ultimas_ventas = ventas_qs.select_related('cliente', 'ruta').order_by('-created_at')[:5]
@@ -149,9 +176,15 @@ def dashboard_view(request):
         'ruta_nombre': ruta_nombre,
         'rutas_count': rutas_count,
         'clientes_count': clientes_count,
-        'ventas_hoy': ventas_hoy_subtotal,
-        'ventas_hoy_netas': ventas_hoy_netas,
-        'por_cobrar': por_cobrar,
+        'today': today,
+        'ventas_hoy_contado': ventas_hoy_contado,
+        'ventas_hoy_credito': ventas_hoy_credito,
+        'ventas_hoy_total': ventas_hoy_total,
+        'cobros_hoy': cobros_hoy,
+        'ingresos_hoy': ingresos_hoy,
+        'por_cobrar_hoy': por_cobrar_hoy,
+        'cobros_hoy_count': cobros_hoy_count,
+        'por_cobrar_total': por_cobrar_total,
         'ultimas_ventas': ultimas_ventas,
         'ultimos_cobros': ultimos_cobros,
     }
