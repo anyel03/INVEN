@@ -83,6 +83,8 @@ def dashboard(request):
             pass
 
     # Totales de Ventas
+    ventas_subtotal = get_decimal(ventas_qs.aggregate(t=Sum('subtotal'))['t'])
+    ventas_descuento = get_decimal(ventas_qs.aggregate(t=Sum('descuento'))['t'])
     ventas_total = get_decimal(ventas_qs.aggregate(t=Sum('total'))['t'])
     ventas_contado = get_decimal(ventas_qs.filter(tipo='CONTADO').aggregate(t=Sum('total'))['t'])
     ventas_credito = get_decimal(ventas_qs.filter(tipo='CREDITO').aggregate(t=Sum('total'))['t'])
@@ -119,6 +121,8 @@ def dashboard(request):
     context = {
         'fecha_inicio': fecha_inicio_str,
         'fecha_fin': fecha_fin_str,
+        'ventas_subtotal': ventas_subtotal,
+        'ventas_descuento': ventas_descuento,
         'ventas_total': ventas_total,
         'ventas_contado': ventas_contado,
         'ventas_credito': ventas_credito,
@@ -178,6 +182,8 @@ def reporte_ventas(request):
         ventas_qs = ventas_qs.filter(estado=estado)
 
     ventas = list(ventas_qs)
+    total_ventas_subtotal = Decimal('0')
+    total_ventas_descuento = Decimal('0')
     total_ventas_monto = Decimal('0')
     total_cobrado_monto = Decimal('0')
     total_pendiente_monto = Decimal('0')
@@ -185,10 +191,13 @@ def reporte_ventas(request):
     for v in ventas:
         cobros_sum = Cobro.objects.filter(venta=v).aggregate(t=Sum('monto'))['t'] or Decimal('0')
         v.cobrado = cobros_sum
-        v.pendiente = v.total - cobros_sum
+        v.pendiente = (v.total - cobros_sum) if (v.total - cobros_sum) > Decimal('0') else Decimal('0')
+        
+        total_ventas_subtotal += v.subtotal
+        total_ventas_descuento += v.descuento
         total_ventas_monto += v.total
         total_cobrado_monto += v.cobrado
-        total_pendiente_monto += (v.pendiente if v.pendiente > Decimal('0') else Decimal('0'))
+        total_pendiente_monto += v.pendiente
 
     rutas = Ruta.objects.all().order_by('nombre')
 
@@ -200,6 +209,8 @@ def reporte_ventas(request):
         'ruta_id': ruta_id,
         'tipo': tipo,
         'estado': estado,
+        'total_ventas_subtotal': total_ventas_subtotal,
+        'total_ventas_descuento': total_ventas_descuento,
         'total_ventas_monto': total_ventas_monto,
         'total_cobrado_monto': total_cobrado_monto,
         'total_pendiente_monto': total_pendiente_monto,

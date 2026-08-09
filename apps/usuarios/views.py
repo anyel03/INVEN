@@ -11,7 +11,19 @@ from apps.ventas.models import Venta
 from apps.cobros.models import Cobro
 
 
+from decimal import Decimal
+
 # ==================== HELPERS ====================
+
+def _get_empleado_info(user_id):
+    """Devuelve (empleado, ruta_id) para un usuario de tipo empleado."""
+    try:
+        empleado = Empleado.objects.filter(usuario_id=user_id).select_related('ruta').first()
+        ruta_id = getattr(empleado, 'ruta_id', None)
+        return empleado, ruta_id
+    except Exception:
+        return None, None
+
 
 def es_admin(request):
     return request.session.get('rol_nombre') == 'ADMIN'
@@ -40,7 +52,6 @@ def solo_admin(view_func):
 
 def login_view(request):
     """Vista de login"""
-    # Si YA está logueado, Ir al dashboard
     if request.session.get('user_id'):
         return redirect('dashboard')
     
@@ -77,48 +88,82 @@ def logout_view(request):
 
 @requiere_login
 def dashboard_view(request):
-    """Dashboard principal"""
+    """Dashboard principal adaptado por Rol (ADMIN o EMPLEADO)"""
+    user_id = request.session.get('user_id')
     rol_nombre = request.session.get('rol_nombre')
+    es_admin = (rol_nombre == 'ADMIN')
+
     now = timezone.localtime(timezone.now())
     inicio_hoy = now.replace(hour=0, minute=0, second=0, microsecond=0)
     fin_hoy = inicio_hoy + timezone.timedelta(days=1)
 
-    # Métricas (desde BD)
-    rutas_count = Ruta.objects.count()
-    clientes_count = Cliente.objects.count()
+    ventas_qs = Venta.objects.all()
+    cobros_qs = Cobro.objects.all()
+    clientes_qs = Cliente.objects.all()
 
-    ventas_hoy = Venta.objects.filter(created_at__gte=inicio_hoy, created_at__lt=fin_hoy).aggregate(
-        t=Sum('total')
-    ).get('t')
-    ventas_hoy = ventas_hoy if ventas_hoy is not None else 0
+    empleado = None
+    ruta_id = None
+    ruta_nombre = 'Todas las Rutas'
 
-    por_cobrar = Venta.objects.filter(estado='PENDIENTE').aggregate(t=Sum('total')).get('t')
-    por_cobrar = por_cobrar if por_cobrar is not None else 0
+    if es_admin:
+        rutas_count = Ruta.objects.count()
+    else:
+        empleado, ruta_id = _get_empleado_info(user_id)
+        if ruta_id:
+            ruta_nombre = getattr(empleado.ruta, 'nombre', f'Ruta #{ruta_id}')
+            rutas_count = 1
+            ventas_qs = ventas_qs.filter(Q(ruta_id=ruta_id) | Q(cliente__ruta_id=ruta_id))
+            cobros_qs = cobros_qs.filter(Q(venta__ruta_id=ruta_id) | Q(venta__cliente__ruta_id=ruta_id))
+            clientes_qs = clientes_qs.filter(ruta_id=ruta_id)
+        else:
+            ruta_nombre = 'Sin Ruta Asignada'
+            rutas_count = 0
+            ventas_qs = Venta.objects.none()
+            cobros_qs = Cobro.objects.none()
+            clientes_qs = Cliente.objects.none()
 
-    ultimas_ventas = (
-        Venta.objects.select_related('cliente')
-        .all()
-        .order_by('-created_at')[:5]
-    )
+    clientes_count = clientes_qs.count()
 
-    ultimos_cobros = (
-        Cobro.objects.select_related('venta__cliente')
-        .all()
-        .order_by('-created_at')[:5]
-    )
+    # Ventas de hoy (Subtotal bruto y Total neto)
+    ventas_hoy_subtotal = ventas_qs.filter(
+        created_at__gte=inicio_hoy, 
+        created_at__lt=fin_hoy
+    ).aggregate(t=Sum('subtotal'))['t'] or Decimal('0')
+
+    ventas_hoy_netas = ventas_qs.filter(
+        created_at__gte=inicio_hoy, 
+        created_at__lt=fin_hoy
+    ).aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+    # Saldo real pendiente por cobrar
+    ventas_pendientes = ventas_qs.filter(estado='PENDIENTE')
+    por_cobrar = Decimal('0')
+    for v in ventas_pendientes:
+        cobrado_v = Cobro.objects.filter(venta=v).aggregate(t=Sum('monto'))['t'] or Decimal('0')
+        saldo_v = v.total - cobrado_v
+        if saldo_v > Decimal('0'):
+            por_cobrar += saldo_v
+
+    # Tablas de actividad reciente
+    ultimas_ventas = ventas_qs.select_related('cliente', 'ruta').order_by('-created_at')[:5]
+    ultimos_cobros = cobros_qs.select_related('venta__cliente', 'venta__ruta').order_by('-created_at')[:5]
 
     context = {
         'user': request.session.get('user_name'),
         'rol': rol_nombre,
+        'es_admin': es_admin,
+        'ruta_nombre': ruta_nombre,
         'rutas_count': rutas_count,
         'clientes_count': clientes_count,
-        'ventas_hoy': ventas_hoy,
+        'ventas_hoy': ventas_hoy_subtotal,
+        'ventas_hoy_netas': ventas_hoy_netas,
         'por_cobrar': por_cobrar,
         'ultimas_ventas': ultimas_ventas,
         'ultimos_cobros': ultimos_cobros,
     }
 
     return render(request, 'usuarios/dashboard.html', context)
+
 
 
 # ==================== ROLES ====================

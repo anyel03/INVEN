@@ -57,34 +57,45 @@
 <!-- SECCIÓN 1: RESUMEN DE VENTAS -->
 <h4 class="mb-3 text-white"><i class="bi bi-cart me-2 text-primary"></i>Resumen de Ventas</h4>
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="col-md">
+        <div class="card stat-card bg-dark border-primary h-100 shadow-sm">
+            <div class="card-body p-3 text-center">
+                <span class="text-muted small text-uppercase fw-bold">Subtotal Ventas</span>
+                <h2 class="text-primary mb-0 mt-1">${{ ventas_subtotal|floatformat:2 }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md">
+        <div class="card stat-card bg-dark border-secondary h-100 shadow-sm">
+            <div class="card-body p-3 text-center">
+                <span class="text-muted small text-uppercase fw-bold">Total Abonos</span>
+                <h2 class="text-info mb-0 mt-1">-${{ ventas_descuento|floatformat:2 }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md">
         <div class="card stat-card bg-dark border-success h-100 shadow-sm">
             <div class="card-body p-3 text-center">
-                <span class="text-muted small text-uppercase fw-bold">Ventas Totales</span>
+                <span class="text-muted small text-uppercase fw-bold">Venta Neta Total</span>
                 <h2 class="text-success mb-0 mt-1">${{ ventas_total|floatformat:2 }}</h2>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card stat-card bg-dark border-primary h-100 shadow-sm">
+    <div class="col-md">
+        <div class="card stat-card bg-dark border-info h-100 shadow-sm">
             <div class="card-body p-3 text-center">
-                <span class="text-muted small text-uppercase fw-bold">Ventas Contado</span>
-                <h2 class="text-primary mb-0 mt-1">${{ ventas_contado|floatformat:2 }}</h2>
+                <span class="text-muted small text-uppercase fw-bold">Contado / Crédito</span>
+                <div class="d-flex justify-content-center gap-2 mt-1">
+                    <span class="badge bg-success small">${{ ventas_contado|floatformat:2 }}</span>
+                    <span class="badge bg-warning text-dark small">${{ ventas_credito|floatformat:2 }}</span>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card stat-card bg-dark border-warning h-100 shadow-sm">
-            <div class="card-body p-3 text-center">
-                <span class="text-muted small text-uppercase fw-bold">Ventas Crédito</span>
-                <h2 class="text-warning mb-0 mt-1">${{ ventas_credito|floatformat:2 }}</h2>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
+    <div class="col-md">
         <div class="card stat-card bg-dark border-danger h-100 shadow-sm">
             <div class="card-body p-3 text-center">
-                <span class="text-muted small text-uppercase fw-bold">Pendiente por Cobrar</span>
+                <span class="text-muted small text-uppercase fw-bold">Pendiente Cobrar</span>
                 <h2 class="text-danger mb-0 mt-1">${{ ventas_pendientes|floatformat:2 }}</h2>
             </div>
         </div>

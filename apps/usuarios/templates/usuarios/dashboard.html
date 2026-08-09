@@ -19,75 +19,79 @@
     <div>
         <h1 class="mb-1"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h1>
         <p class="text-muted mb-0">
-            {% if request.session.rol_nombre == 'ADMIN' %}
+            {% if es_admin %}
             Bienvenido, <strong>{{ user }}</strong> - Tienes acceso completo al sistema
             {% else %}
-            Bienvenido, <strong>{{ user }}</strong> - Puedes vender, cobrar y registrar clientes
+            Bienvenido, <strong>{{ user }}</strong> - Estás operando en la <strong>Ruta {{ ruta_nombre }}</strong>
             {% endif %}
         </p>
     </div>
-    <div class="mt-3 mt-md-0">
-        <span class="badge fs-6 px-3 py-2 badge-{% if request.session.rol_nombre == 'ADMIN' %}admin{% else %}empleado{% endif %}">
-            <i class="bi bi-{% if request.session.rol_nombre == 'ADMIN' %}shield-check{% else %}person-badge{% endif %} me-1"></i>
-            {{ request.session.rol_nombre }}
+    <div class="mt-3 mt-md-0 d-flex gap-2 align-items-center">
+        <span class="badge fs-6 px-3 py-2 badge-{% if es_admin %}admin{% else %}empleado{% endif %}">
+            <i class="bi bi-{% if es_admin %}shield-check{% else %}person-badge{% endif %} me-1"></i>
+            {{ rol }}
         </span>
+        {% if not es_admin %}
+        <span class="badge bg-primary fs-6 px-3 py-2">
+            <i class="bi bi-geo-alt me-1"></i>{{ ruta_nombre }}
+        </span>
+        {% endif %}
     </div>
 </div>
 
 <!-- ==================== ESTADÍSTICAS ==================== -->
-<h4 class="mb-3"><i class="bi bi-bar-chart me-2"></i>Resumen</h4>
+<h4 class="mb-3"><i class="bi bi-bar-chart me-2"></i>Resumen {% if not es_admin %}(Ruta {{ ruta_nombre }}){% endif %}</h4>
 <div class="row mb-4">
-    <!-- ADMIN: Rutas y Clientes -->
-    {% if request.session.rol_nombre == 'ADMIN' %}
+    <!-- Rutas / Ámbito -->
     <div class="col-md-3 mb-3">
         <div class="card stat-card bg-primary text-white h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-white-50 mb-1">Rutas</h6>
-                    <h2 class="mb-0">{{ rutas_count }}</h2>
-                    <small class="text-white-50">Activas</small>
+                    <h6 class="text-white-50 mb-1">{% if es_admin %}Rutas{% else %}Ruta Asignada{% endif %}</h6>
+                    <h3 class="mb-0 fw-bold">{% if es_admin %}{{ rutas_count }}{% else %}{{ ruta_nombre }}{% endif %}</h3>
+                    <small class="text-white-50">{% if es_admin %}Activas{% else %}En operación{% endif %}</small>
                 </div>
                 <i class="bi bi-geo-alt fs-1 opacity-50"></i>
             </div>
         </div>
     </div>
     
+    <!-- Clientes -->
     <div class="col-md-3 mb-3">
         <div class="card stat-card bg-success text-white h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="text-white-50 mb-1">Clientes</h6>
-                    <h2 class="mb-0">{{ clientes_count }}</h2>
-                    <small class="text-white-50">Registrados</small>
+                    <h2 class="mb-0 fw-bold">{{ clientes_count }}</h2>
+                    <small class="text-white-50">{% if es_admin %}En total{% else %}En tu ruta{% endif %}</small>
                 </div>
                 <i class="bi bi-people fs-1 opacity-50"></i>
             </div>
         </div>
     </div>
-    {% endif %}
     
-    <!-- TODOS: Ventas Hoy -->
+    <!-- Ventas Hoy (Subtotal) -->
     <div class="col-md-3 mb-3">
         <div class="card stat-card bg-warning text-dark h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-dark-50 mb-1">Ventas Hoy</h6>
-                    <h2 class="mb-0">${{ ventas_hoy }}</h2>
-                    <small class="text-dark-50">Realizadas</small>
+                    <h6 class="text-dark-50 mb-1">Subtotal Ventas Hoy</h6>
+                    <h2 class="mb-0 fw-bold">${{ ventas_hoy|floatformat:2 }}</h2>
+                    <small class="text-dark-50">{% if es_admin %}Global{% else %}En tu ruta{% endif %} (Neta: ${{ ventas_hoy_netas|floatformat:2 }})</small>
                 </div>
                 <i class="bi bi-cart fs-1 opacity-50"></i>
             </div>
         </div>
     </div>
     
-    <!-- TODOS: Por Cobrar -->
+    <!-- Por Cobrar -->
     <div class="col-md-3 mb-3">
         <div class="card stat-card bg-info text-white h-100">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="text-white-50 mb-1">Por Cobrar</h6>
-                    <h2 class="mb-0">${{ por_cobrar }}</h2>
-                    <small class="text-white-50">Pendiente</small>
+                    <h2 class="mb-0 fw-bold">${{ por_cobrar|floatformat:2 }}</h2>
+                    <small class="text-white-50">{% if es_admin %}Global pendiente{% else %}Pendiente en tu ruta{% endif %}</small>
                 </div>
                 <i class="bi bi-cash-stack fs-1 opacity-50"></i>
             </div>
@@ -99,8 +103,8 @@
 <h4 class="mb-3"><i class="bi bi-lightning me-2"></i>Acciones Rápidas</h4>
 <div class="row mb-4">
     
-    <!-- ==================== ADMIN ==================== -->
-    {% if request.session.rol_nombre == 'ADMIN' %}
+    <!-- ADMIN -->
+    {% if es_admin %}
     
     <div class="col-6 col-md-2 mb-2">
         <a href="/rutas/" class="btn btn-outline-primary w-100 py-3 quick-btn">
@@ -144,7 +148,7 @@
         </a>
     </div>
     
-    <!-- ==================== EMPLEADO ==================== -->
+    <!-- EMPLEADO -->
     {% else %}
     
     <div class="col-6 col-md-4 mb-2">
@@ -162,13 +166,13 @@
     </div>
     
     <div class="col-12 col-md-4 mb-2">
-        <a href="/clientes/crear/" class="btn btn-warning w-100 py-4 quick-btn">
+        <a href="/clientes/crear/" class="btn btn-warning w-100 py-4 quick-btn text-dark">
             <i class="bi bi-person-plus d-block fs-2 mb-2"></i>
             <h5 class="mb-0">Nuevo Cliente</h5>
         </a>
     </div>
     
-    <div class="col-12 mt-3">
+    <div class="col-12 mt-2">
         <a href="/ventas/" class="btn btn-outline-info w-100 py-3 quick-btn">
             <i class="bi bi-clock-history me-2"></i>Ver Historial de Ventas
         </a>
@@ -177,40 +181,42 @@
     {% endif %}
 </div>
 
-<!-- ==================== ADMIN: TABLAS RESUMEN ==================== -->
-{% if request.session.rol_nombre == 'ADMIN' %}
+<!-- ==================== TABLAS RESUMEN ==================== -->
 <div class="row">
     <!-- Últimas Ventas -->
     <div class="col-md-6 mb-4">
-        <div class="card bg-dark border-secondary">
-            <div class="card-header bg-dark border-bottom border-secondary">
+        <div class="card bg-dark border-secondary shadow-sm">
+            <div class="card-header bg-dark border-bottom border-secondary d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-cart me-2"></i>Últimas Ventas</h5>
+                <a href="/ventas/" class="btn btn-sm btn-outline-info">Ver todas</a>
             </div>
             <div class="card-body p-0">
-                <table class="table table-dark table-hover mb-0">
+                <table class="table table-dark table-hover align-middle mb-0">
                     <thead>
-                        <tr>
+                        <tr class="small text-muted">
+                            <th class="ps-3">#</th>
                             <th>Cliente</th>
                             <th>Total</th>
-                            <th>Tipo</th>
+                            <th class="pe-3">Tipo</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for v in ultimas_ventas %}
                         <tr>
-                            <td>{{ v.cliente.nombre }}</td>
-                            <td>${{ v.total }}</td>
-                            <td>
+                            <td class="ps-3 fw-bold text-info">#{{ v.id }}</td>
+                            <td class="fw-semibold text-white">{{ v.cliente.nombre }}</td>
+                            <td class="fw-bold">${{ v.total|floatformat:2 }}</td>
+                            <td class="pe-3">
                                 {% if v.tipo == 'CONTADO' %}
                                     <span class="badge bg-success">Contado</span>
                                 {% else %}
-                                    <span class="badge bg-warning">Crédito</span>
+                                    <span class="badge bg-warning text-dark">Crédito</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="3" class="text-center text-muted">No hay ventas registradas</td>
+                            <td colspan="4" class="text-center py-4 text-muted">No hay ventas registradas</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -221,29 +227,32 @@
     
     <!-- Últimos Cobros -->
     <div class="col-md-6 mb-4">
-        <div class="card bg-dark border-secondary">
-            <div class="card-header bg-dark border-bottom border-secondary">
+        <div class="card bg-dark border-secondary shadow-sm">
+            <div class="card-header bg-dark border-bottom border-secondary d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Últimos Cobros</h5>
+                <a href="/cobros/" class="btn btn-sm btn-outline-success">Ver todos</a>
             </div>
             <div class="card-body p-0">
-                <table class="table table-dark table-hover mb-0">
+                <table class="table table-dark table-hover align-middle mb-0">
                     <thead>
-                        <tr>
+                        <tr class="small text-muted">
+                            <th class="ps-3">#</th>
                             <th>Cliente</th>
                             <th>Monto</th>
-                            <th>Fecha</th>
+                            <th class="pe-3">Fecha</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for c in ultimos_cobros %}
                         <tr>
-                            <td>{{ c.venta.cliente.nombre }}</td>
-                            <td>${{ c.monto }}</td>
-                            <td>{{ c.created_at|date:'Y-m-d' }}</td>
+                            <td class="ps-3 fw-bold text-info">#{{ c.id }}</td>
+                            <td class="fw-semibold text-white">{{ c.venta.cliente.nombre }}</td>
+                            <td class="text-success fw-bold">+${{ c.monto|floatformat:2 }}</td>
+                            <td class="pe-3 text-muted small">{{ c.created_at|date:'d/m/Y H:i' }}</td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="3" class="text-center text-muted">No hay cobros registrados</td>
+                            <td colspan="4" class="text-center py-4 text-muted">No hay cobros registrados</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -252,24 +261,5 @@
         </div>
     </div>
 </div>
-{% endif %}
 
-<!-- ==================== EMPLEADO: RECORDATORIO ==================== -->
-{% if request.session.rol_nombre == 'EMPLEADO' %}
-<div class="row">
-    <div class="col-md-12">
-        <div class="card bg-dark border-primary">
-            <div class="card-body text-center py-4">
-                <i class="bi bi-info-circle text-info fs-1 mb-3 d-block"></i>
-                <h4>Recuerda</h4>
-                <p class="text-muted mb-0">
-                    Registra correctamente tus ventas y cobros. 
-                    Cuando crees un nuevo cliente, debes tomar o subir la foto de su documento de identidad.
-                </p>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-{% endblock %}
+{% endblock %}

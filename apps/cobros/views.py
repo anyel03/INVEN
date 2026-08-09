@@ -7,6 +7,7 @@ import json
 
 from .models import Cobro
 from apps.ventas.models import Venta
+from apps.rutas.models import Ruta
 
 
 # ==================== HELPERS ====================
@@ -229,4 +230,68 @@ def cobro_create(request):
         'clientes_list': list(clientes_dict.values()),
         'es_admin': es_admin,
         'ruta_nombre': getattr(empleado.ruta, 'nombre', 'N/A') if (empleado and empleado.ruta) else ('Todas' if es_admin else 'Sin Ruta')
-    })
+    })
+
+
+@requiere_login
+def cobros_pendientes(request):
+    """Listado detallado de ventas a crédito con saldo pendiente por cobrar"""
+    user_id = request.session.get('user_id')
+    rol_nombre = request.session.get('rol_nombre')
+    es_admin = (rol_nombre == 'ADMIN')
+    empleado, ruta_id = _get_empleado_info(user_id)
+
+    search = request.GET.get('search', '').strip()
+    ruta_filtro = request.GET.get('ruta_id', '').strip()
+
+    ventas_qs = Venta.objects.filter(
+        tipo='CREDITO',
+        estado='PENDIENTE'
+    ).select_related('cliente', 'ruta', 'cliente__ruta', 'usuario').order_by('-created_at')
+
+    if not es_admin:
+        if ruta_id:
+            ventas_qs = ventas_qs.filter(models.Q(ruta_id=ruta_id) | models.Q(cliente__ruta_id=ruta_id))
+        else:
+            ventas_qs = Venta.objects.none()
+    elif ruta_filtro:
+        ventas_qs = ventas_qs.filter(models.Q(ruta_id=ruta_filtro) | models.Q(cliente__ruta_id=ruta_filtro))
+
+    if search:
+        ventas_qs = ventas_qs.filter(
+            models.Q(cliente__nombre__icontains=search) |
+            models.Q(cliente__numero_documento__icontains=search) |
+            models.Q(id__icontains=search)
+        )
+
+    pendientes = []
+    total_deuda_pendiente = Decimal('0')
+    total_cobrado_acumulado = Decimal('0')
+    total_ventas_bruto = Decimal('0')
+
+    for v in ventas_qs:
+        cobrado_sum = Cobro.objects.filter(venta=v).aggregate(t=models.Sum('monto'))['t'] or Decimal('0')
+        saldo = v.total - cobrado_sum
+        if saldo > Decimal('0'):
+            v.cobrado = cobrado_sum
+            v.saldo_pendiente = saldo
+            pendientes.append(v)
+            total_deuda_pendiente += saldo
+            total_cobrado_acumulado += cobrado_sum
+            total_ventas_bruto += v.subtotal
+
+    rutas = Ruta.objects.all().order_by('nombre')
+    ruta_nombre = getattr(empleado.ruta, 'nombre', 'N/A') if (empleado and empleado.ruta) else ('Todas' if es_admin else 'Sin Ruta')
+
+    return render(request, 'cobros/pendientes.html', {
+        'pendientes': pendientes,
+        'total_deuda_pendiente': total_deuda_pendiente,
+        'total_cobrado_acumulado': total_cobrado_acumulado,
+        'total_ventas_bruto': total_ventas_bruto,
+        'rutas': rutas,
+        'search': search,
+        'ruta_filtro': ruta_filtro,
+        'es_admin': es_admin,
+        'ruta_nombre': ruta_nombre
+    })
+

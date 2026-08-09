@@ -16,7 +16,10 @@
             {% endif %}
         </p>
     </div>
-    <div class="mt-2 mt-md-0">
+    <div class="mt-2 mt-md-0 d-flex gap-2">
+        <a href="{% url 'cobros_pendientes' %}" class="btn btn-outline-warning btn-lg shadow-sm">
+            <i class="bi bi-clock-history me-2"></i>Ver Cuentas Por Cobrar
+        </a>
         <a href="{% url 'cobro_create' %}" class="btn btn-success btn-lg shadow-sm">
             <i class="bi bi-plus-circle me-2"></i>Registrar Cobro
         </a>

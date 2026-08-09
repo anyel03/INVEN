@@ -1,55 +1,55 @@
 {% extends 'base.html' %}
 
-{% block title %}Nueva Ruta{% endblock %}
+{% block title %}{% if action == 'editar' %}Editar Ruta{% else %}Nueva Ruta{% endif %}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
-        <div class="card bg-dark border-primary">
-            <div class="card-header">
-                <h4 class="mb-0">
-                    <i class="bi bi-geo-alt me-2"></i>Nueva Ruta
+        <div class="card bg-dark border-primary shadow-lg">
+            <div class="card-header bg-primary bg-opacity-10 border-primary py-3">
+                <h4 class="mb-0 text-primary">
+                    <i class="bi bi-geo-alt me-2"></i>{% if action == 'editar' %}Editar Ruta: {{ ruta.nombre }}{% else %}Nueva Ruta{% endif %}
                 </h4>
             </div>
-            <div class="card-body">
+            <div class="card-body p-4">
                 <form method="post">
                     {% csrf_token %}
                     
                     <!-- Nombre de la Ruta -->
                     <div class="mb-3">
-                        <label for="id_nombre" class="form-label">Nombre de la Ruta</label>
+                        <label for="id_nombre" class="form-label fw-bold text-white">Nombre de la Ruta *</label>
                         <input type="text" 
                                name="nombre" 
                                id="id_nombre" 
-                               class="form-control bg-dark text-white border-secondary" 
+                               class="form-control bg-dark text-white border-secondary fs-5" 
                                placeholder="Ej. Ruta Norte, Zona Centro..." 
                                maxlength="100" 
+                               value="{{ ruta.nombre|default:'' }}"
                                required>
                     </div>
                     
                     <!-- Descripción de la Ruta -->
                     <div class="mb-4">
-                        <label for="id_descripcion" class="form-label">Descripción</label>
+                        <label for="id_descripcion" class="form-label fw-bold text-white">Descripción</label>
                         <textarea name="descripcion" 
                                   id="id_descripcion" 
                                   class="form-control bg-dark text-white border-secondary" 
                                   rows="4" 
-                                  placeholder="Detalles sobre las zonas, clientes o itinerario que cubre esta ruta..." 
-                                  required></textarea>
+                                  placeholder="Detalles sobre las zonas, clientes o itinerario que cubre esta ruta...">{{ ruta.descripcion|default:'' }}</textarea>
                     </div>
                     
                     <!-- Botones de Acción -->
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg me-2"></i>Crear Ruta
-                        </button>
-                        <a href="/rutas/" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left me-2"></i>Volver al Listado
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'ruta_list' %}" class="btn btn-outline-secondary px-4 me-md-2">
+                            <i class="bi bi-arrow-left me-2"></i>Cancelar
                         </a>
+                        <button type="submit" class="btn btn-primary btn-lg px-5 shadow-sm">
+                            <i class="bi bi-check-lg me-2"></i>{% if action == 'editar' %}Guardar Cambios{% else %}Crear Ruta{% endif %}
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
+{% endblock %}
