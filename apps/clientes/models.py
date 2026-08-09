@@ -26,7 +26,10 @@ class Cliente(models.Model):
         null=True
     )
     
-    
+    # Geolocalización GPS
+    latitud = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    longitud = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+
     class Meta:
         db_table = 'clientes'
         ordering = ['nombre']

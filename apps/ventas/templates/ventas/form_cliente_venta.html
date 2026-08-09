@@ -83,6 +83,24 @@
                                     </div>
 
                                     <hr class="border-secondary">
+                                    
+                                    <h6 class="mb-2"><i class="bi bi-geo-alt text-danger me-2"></i>Ubicación GPS del Cliente</h6>
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <input type="text" name="latitud" id="latVentaInput" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Latitud" readonly>
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="text" name="longitud" id="lngVentaInput" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Longitud" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2 d-flex gap-1">
+                                        <button type="button" id="btnGpsVenta" class="btn btn-sm btn-outline-info w-100">
+                                            <i class="bi bi-crosshair me-1"></i>Usar mi ubicación GPS actual
+                                        </button>
+                                    </div>
+                                    <div id="mapPickerVenta" class="rounded border border-secondary mb-3" style="height: 160px; background-color: #1e222d;"></div>
+
+                                    <hr class="border-secondary">
 
                                     <h6 class="mb-2"><i class="bi bi-camera me-2"></i>Foto del Documento</h6>
                                     <div class="mb-3">
@@ -495,6 +513,76 @@ function fetchStockPorRuta() {
         })
         .catch(function(err) { console.error('Error fetchStockPorRuta', err); });
 }
+</script>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var latInput = document.getElementById('latVentaInput');
+    var lngInput = document.getElementById('lngVentaInput');
+    var mapContainer = document.getElementById('mapPickerVenta');
+
+    if (mapContainer && latInput && lngInput) {
+        var defaultLat = 4.6097;
+        var defaultLng = -74.0817;
+
+        var map = L.map('mapPickerVenta').setView([defaultLat, defaultLng], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        var marker = null;
+
+        function setLocation(lat, lng, zoom) {
+            var roundedLat = parseFloat(lat).toFixed(7);
+            var roundedLng = parseFloat(lng).toFixed(7);
+            latInput.value = roundedLat;
+            lngInput.value = roundedLng;
+
+            if (marker) {
+                marker.setLatLng([roundedLat, roundedLng]);
+            } else {
+                marker = L.marker([roundedLat, roundedLng], { draggable: true }).addTo(map);
+                marker.on('dragend', function(e) {
+                    var coord = e.target.getLatLng();
+                    setLocation(coord.lat, coord.lng);
+                });
+            }
+            if (zoom) {
+                map.setView([roundedLat, roundedLng], zoom);
+            }
+        }
+
+        map.on('click', function(e) {
+            setLocation(e.latlng.lat, e.latlng.lng);
+        });
+
+        var btnGps = document.getElementById('btnGpsVenta');
+        if (btnGps) {
+            btnGps.addEventListener('click', function() {
+                if (navigator.geolocation) {
+                    btnGps.disabled = true;
+                    btnGps.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Obteniendo GPS...';
+                    navigator.geolocation.getCurrentPosition(function(pos) {
+                        setLocation(pos.coords.latitude, pos.coords.longitude, 16);
+                        btnGps.disabled = false;
+                        btnGps.innerHTML = '<i class="bi bi-crosshair me-1"></i> Usar mi ubicación GPS actual';
+                    }, function(err) {
+                        alert('No se pudo obtener el GPS: ' + err.message);
+                        btnGps.disabled = false;
+                        btnGps.innerHTML = '<i class="bi bi-crosshair me-1"></i> Usar mi ubicación GPS actual';
+                    }, { enableHighAccuracy: true });
+                } else {
+                    alert('Tu navegador no soporta geolocalización GPS.');
+                }
+            });
+        }
+    }
+});
 </script>
 {% endblock %}
 {% endblock %}

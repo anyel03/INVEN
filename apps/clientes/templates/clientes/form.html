@@ -66,6 +66,31 @@
                     
                     <hr class="border-secondary">
                     
+                    <h5 class="mb-3"><i class="bi bi-geo-alt me-2 text-danger"></i>Ubicación GPS (Para Ruta de Cobro)</h5>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Latitud</label>
+                            <input type="text" name="latitud" id="latitudInput" class="form-control bg-dark text-white border-secondary" 
+                                   value="{{ cliente.latitud|default:'' }}" placeholder="Ej: 4.6097100" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Longitud</label>
+                            <input type="text" name="longitud" id="longitudInput" class="form-control bg-dark text-white border-secondary" 
+                                   value="{{ cliente.longitud|default:'' }}" placeholder="Ej: -74.0817500" readonly>
+                        </div>
+                    </div>
+                    <div class="mb-3 d-flex gap-2">
+                        <button type="button" id="btnGps" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-crosshair me-1"></i>Usar mi ubicación GPS actual
+                        </button>
+                        <button type="button" id="btnLimpiarGps" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-trash me-1"></i>Quitar ubicación
+                        </button>
+                    </div>
+                    <div id="mapPicker" class="rounded border border-secondary mb-3" style="height: 220px; background-color: #1e222d;"></div>
+
+                    <hr class="border-secondary">
+                    
                     <h5 class="mb-3"><i class="bi bi-camera me-2"></i>Foto del Documento</h5>
                     
                     {% if cliente.foto_documento %}
@@ -102,17 +127,97 @@
 </div>
 
 {% block extra_js %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-document.getElementById('fotoInput').addEventListener('change', function(e) {
-    var file = e.target.files[0];
-    if (file) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('previewImg').src = e.target.result;
-            document.getElementById('previewContainer').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+document.addEventListener('DOMContentLoaded', function() {
+    // Preview foto
+    var fotoInput = document.getElementById('fotoInput');
+    if (fotoInput) {
+        fotoInput.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewImg').src = e.target.result;
+                    document.getElementById('previewContainer').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
     }
+
+    // Mapa Leaflet para capturar ubicación
+    var latInput = document.getElementById('latitudInput');
+    var lngInput = document.getElementById('longitudInput');
+    var defaultLat = parseFloat(latInput.value) || 4.6097;
+    var defaultLng = parseFloat(lngInput.value) || -74.0817;
+    var hasCoords = latInput.value && lngInput.value;
+
+    var map = L.map('mapPicker').setView([defaultLat, defaultLng], hasCoords ? 15 : 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    var marker = null;
+
+    function setLocation(lat, lng, zoom) {
+        var roundedLat = parseFloat(lat).toFixed(7);
+        var roundedLng = parseFloat(lng).toFixed(7);
+        latInput.value = roundedLat;
+        lngInput.value = roundedLng;
+
+        if (marker) {
+            marker.setLatLng([roundedLat, roundedLng]);
+        } else {
+            marker = L.marker([roundedLat, roundedLng], { draggable: true }).addTo(map);
+            marker.on('dragend', function(e) {
+                var coord = e.target.getLatLng();
+                setLocation(coord.lat, coord.lng);
+            });
+        }
+        if (zoom) {
+            map.setView([roundedLat, roundedLng], zoom);
+        }
+    }
+
+    if (hasCoords) {
+        setLocation(defaultLat, defaultLng);
+    }
+
+    map.on('click', function(e) {
+        setLocation(e.latlng.lat, e.latlng.lng);
+    });
+
+    document.getElementById('btnGps').addEventListener('click', function() {
+        if (navigator.geolocation) {
+            this.disabled = true;
+            this.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Obteniendo ubicación...';
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                setLocation(pos.coords.latitude, pos.coords.longitude, 16);
+                document.getElementById('btnGps').disabled = false;
+                document.getElementById('btnGps').innerHTML = '<i class="bi bi-crosshair me-1"></i> Usar mi ubicación GPS actual';
+            }, function(err) {
+                alert('No se pudo obtener la ubicación GPS: ' + err.message);
+                document.getElementById('btnGps').disabled = false;
+                document.getElementById('btnGps').innerHTML = '<i class="bi bi-crosshair me-1"></i> Usar mi ubicación GPS actual';
+            }, { enableHighAccuracy: true });
+        } else {
+            alert('Tu navegador no soporta geolocalización GPS.');
+        }
+    });
+
+    document.getElementById('btnLimpiarGps').addEventListener('click', function() {
+        latInput.value = '';
+        lngInput.value = '';
+        if (marker) {
+            map.removeLayer(marker);
+            marker = null;
+        }
+    });
 });
 </script>
 {% endblock %}

@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+
+{% block title %}Ruta GPS de Cobro - InVen{% endblock %}
+
+{% block content %}
+<!-- Encabezado -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-2 pb-3 mb-3 border-bottom border-secondary">
+    <div>
+        <h1 class="h2 mb-1"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Ruta GPS de Cobro Diario</h1>
+        <p class="text-muted mb-0 small">
+            {% if es_admin %}
+                <span class="badge bg-danger"><i class="bi bi-shield-check me-1"></i>Administrador</span>
+                <span class="text-secondary ms-1">Vistas de <strong>Todas las Rutas</strong></span>
+            {% else %}
+                <span class="badge bg-info text-dark"><i class="bi bi-person-badge me-1"></i>Empleado</span>
+                <span class="text-secondary ms-1">Filtro activo: <strong>Ruta {{ ruta_nombre }}</strong></span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="mt-2 mt-md-0 d-flex gap-2">
+        <a href="{% url 'cobros_pendientes' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-list-check me-1"></i>Vista Listado Tabla
+        </a>
+        {% if google_maps_url %}
+        <a href="{{ google_maps_url }}" target="_blank" class="btn btn-success font-weight-bold shadow-sm">
+            <i class="bi bi-compass-fill me-1"></i>🚀 Abrir Navegación en Google Maps
+        </a>
+        {% else %}
+        <button class="btn btn-secondary disabled" title="Registra ubicaciones GPS en clientes para habilitar navegación">
+            <i class="bi bi-compass me-1"></i>Sin Coordenadas GPS
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tarjetas Métricas -->
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card bg-dark border-warning shadow-sm">
+            <div class="card-body p-3 text-center">
+                <span class="text-muted small text-uppercase fw-bold">Total por Recaudar</span>
+                <h3 class="text-warning mb-0 mt-1">${{ total_deuda|floatformat:2 }}</h3>
+                <small class="text-muted">{{ total_puntos_count }} cobro(s) pendiente(s)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-dark border-info shadow-sm">
+            <div class="card-body p-3 text-center">
+                <span class="text-muted small text-uppercase fw-bold">Paradas en Mapa GPS</span>
+                <h3 class="text-info mb-0 mt-1">{{ puntos_con_coords_count }} de {{ total_puntos_count }}</h3>
+                <small class="text-muted">Clientes con ubicación geográfica configurada</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-dark border-success shadow-sm">
+            <div class="card-body p-3 text-center">
+                <span class="text-muted small text-uppercase fw-bold">Navegación Móvil</span>
+                <h3 class="text-success mb-0 mt-1"><i class="bi bi-map me-1"></i>Turn-by-Turn</h3>
+                <small class="text-muted">Compatible con App de Google Maps</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card bg-dark border-secondary mb-3 shadow-sm">
+    <div class="card-body p-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-{% if es_admin %}4{% else %}6{% endif %}">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-secondary border-secondary text-white"><i class="bi bi-search"></i></span>
+                    <input type="text" name="search" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por cliente o cédula..." value="{{ search }}">
+                </div>
+            </div>
+            {% if es_admin %}
+            <div class="col-md-3">
+                <select name="ruta_id" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
+                    <option value="">Todas las rutas</option>
+                    {% for r in rutas %}
+                    <option value="{{ r.id }}" {% if ruta_filtro == r.id|stringformat:"s" %}selected{% endif %}>{{ r.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-3">
+                <select name="color" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
+                    <option value="">Todos los Estados (Colores)</option>
+                    <option value="ROJO" {% if color_filtro == 'ROJO' %}selected{% endif %}>🔴 Rojo (Vencidos)</option>
+                    <option value="NARANJA" {% if color_filtro == 'NARANJA' %}selected{% endif %}>🟠 Naranja (Cobrar Hoy)</option>
+                    <option value="VERDE" {% if color_filtro == 'VERDE' %}selected{% endif %}>🟢 Verde (Futuros)</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+                {% if search or ruta_filtro or color_filtro %}
+                <a href="{% url 'cobro_ruta_mapa' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Contenedor Principal Mapa y Lista -->
+<div class="row g-3">
+    <!-- Columna Izquierda: Mapa Leaflet -->
+    <div class="col-lg-7">
+        <div class="card bg-dark border-secondary shadow-sm h-100">
+            <div class="card-header bg-secondary bg-opacity-20 border-secondary py-2 d-flex justify-content-between align-items-center">
+                <span class="text-white fw-bold"><i class="bi bi-map me-1"></i>Mapa Interactivo de Paradas</span>
+                <small class="text-muted">Haz clic en un punto para ver detalles</small>
+            </div>
+            <div class="card-body p-0">
+                <div id="leafletMap" style="height: 520px; width: 100%; background-color: #1a1d24;" class="rounded-bottom"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna Derecha: Lista Secuencial de Paradas -->
+    <div class="col-lg-5">
+        <div class="card bg-dark border-secondary shadow-sm h-100">
+            <div class="card-header bg-secondary bg-opacity-20 border-secondary py-2 d-flex justify-content-between align-items-center">
+                <span class="text-white fw-bold"><i class="bi bi-signpost-split me-1"></i>Orden de Visitas ({{ total_puntos_count }})</span>
+                <span class="badge bg-secondary">Prioridad Fecha</span>
+            </div>
+            <div class="card-body p-2 overflow-auto" style="max-height: 520px;">
+                <div class="list-group list-group-flush" id="listaPuntos">
+                    {% for p in puntos_mapa %}
+                    <div class="list-group-item bg-dark border-secondary text-white p-2 mb-2 rounded shadow-sm punto-card" 
+                         id="punto-item-{{ p.orden }}" 
+                         style="cursor: pointer;" 
+                         onclick="focusMarker({{ p.orden }})">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div>
+                                <span class="badge {% if p.estado_cobro == 'ROJO' %}bg-danger{% elif p.estado_cobro == 'NARANJA' %}bg-warning text-dark{% else %}bg-success{% endif %} me-1 font-monospace">
+                                    #{{ p.orden }}
+                                </span>
+                                <strong>{{ p.cliente_nombre }}</strong>
+                                <small class="text-muted ms-1">(Cédula: {{ p.cliente_id }})</small>
+                            </div>
+                            <span class="badge bg-warning text-dark font-monospace">${{ p.saldo|floatformat:2 }}</span>
+                        </div>
+
+                        <div class="small text-muted mb-1">
+                            <i class="bi bi-geo-alt me-1"></i>{{ p.direccion|default:"Sin dirección registrada" }}
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center pt-1 border-top border-secondary border-opacity-50">
+                            <div>
+                                {% if p.estado_cobro == 'ROJO' %}
+                                    <span class="badge bg-outline-danger border border-danger text-danger py-0 px-1 small">Pasado: {{ p.proximo_cobro }}</span>
+                                {% elif p.estado_cobro == 'NARANJA' %}
+                                    <span class="badge bg-outline-warning border border-warning text-warning py-0 px-1 small">Cobrar Hoy</span>
+                                {% else %}
+                                    <span class="badge bg-outline-success border border-success text-success py-0 px-1 small">{{ p.proximo_cobro }}</span>
+                                {% endif %}
+                                {% if p.has_gps %}
+                                    <span class="badge bg-info text-dark py-0 px-1 small" title="Coordenadas configuradas"><i class="bi bi-geo-fill me-1"></i>GPS OK</span>
+                                {% else %}
+                                    <button type="button" class="btn btn-sm btn-outline-warning py-0 px-2 small ms-1" onclick="event.stopPropagation(); capturarGpsCliente('{{ p.cliente_id }}', '{{ p.cliente_nombre }}')" title="Guardar la ubicación GPS donde estás parado como local del cliente">
+                                        <i class="bi bi-crosshair me-1"></i>Fijar GPS aquí
+                                    </button>
+                                {% endif %}
+                            </div>
+
+                            <div class="d-flex gap-1" onclick="event.stopPropagation();">
+                                {% if p.telefono %}
+                                <a href="tel:{{ p.telefono }}" class="btn btn-sm btn-outline-info p-1 px-2" title="Llamar">
+                                    <i class="bi bi-telephone-fill"></i>
+                                </a>
+                                <a href="https://wa.me/{{ p.telefono }}" target="_blank" class="btn btn-sm btn-outline-success p-1 px-2" title="WhatsApp">
+                                    <i class="bi bi-whatsapp"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'cobro_create' %}" class="btn btn-sm btn-success p-1 px-2">
+                                    <i class="bi bi-cash me-1"></i>Cobrar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-check-circle fs-1 text-success d-block mb-2"></i>
+                        ¡No hay puntos de cobro pendientes para esta búsqueda!
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+var puntosData = {{ puntos_mapa_json|safe }};
+var map;
+var markersMap = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    var defaultLat = 4.6097;
+    var defaultLng = -74.0817;
+
+    // Buscar primer punto con GPS para centrar
+    var firstWithGps = puntosData.find(p => p.has_gps);
+    if (firstWithGps) {
+        defaultLat = firstWithGps.lat;
+        defaultLng = firstWithGps.lng;
+    }
+
+    map = L.map('leafletMap').setView([defaultLat, defaultLng], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    var latLngs = [];
+
+    puntosData.forEach(function(p) {
+        if (p.has_gps) {
+            var colorHex = "#198754"; // verde
+            if (p.estado_cobro === 'ROJO') colorHex = "#dc3545";
+            if (p.estado_cobro === 'NARANJA') colorHex = "#ffc107";
+
+            // Crear marcador con número
+            var customIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color: ${colorHex}; color: #ffffff; font-weight: bold; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.5); font-size: 13px;">${p.orden}</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            });
+
+            var marker = L.marker([p.lat, p.lng], { icon: customIcon }).addTo(map);
+
+            var popupContent = `
+                <div style="color: #000; min-width: 180px;">
+                    <h6 class="mb-1 fw-bold">#${p.orden} - ${p.cliente_nombre}</h6>
+                    <p class="mb-1 small"><strong>Saldo Pendiente:</strong> $${p.saldo.toFixed(2)}</p>
+                    <p class="mb-1 small"><strong>Próximo Cobro:</strong> ${p.proximo_cobro}</p>
+                    <p class="mb-2 small"><strong>Dirección:</strong> ${p.direccion || 'N/A'}</p>
+                    <div class="d-flex gap-1 mt-2">
+                        ${p.telefono ? `<a href="https://wa.me/${p.telefono}" target="_blank" class="btn btn-sm btn-success py-0 px-2 small">WhatsApp</a>` : ''}
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" class="btn btn-sm btn-primary py-0 px-2 small">GPS Google</a>
+                    </div>
+                </div>
+            `;
+            marker.bindPopup(popupContent);
+
+            markersMap[p.orden] = marker;
+            latLngs.push([p.lat, p.lng]);
+        }
+    });
+
+    if (latLngs.length > 0) {
+        var bounds = L.latLngBounds(latLngs);
+        map.fitBounds(bounds, { padding: [40, 40] });
+
+        // Trazar línea entre puntos
+        if (latLngs.length > 1) {
+            L.polyline(latLngs, {
+                color: '#0d6efd',
+                weight: 3,
+                opacity: 0.7,
+                dashArray: '8, 8'
+            }).addTo(map);
+        }
+    }
+});
+
+function focusMarker(orden) {
+    var marker = markersMap[orden];
+    if (marker) {
+        map.setView(marker.getLatLng(), 16);
+        marker.openPopup();
+    }
+    document.querySelectorAll('.punto-card').forEach(el => el.classList.remove('border-primary', 'bg-secondary', 'bg-opacity-20'));
+    var card = document.getElementById('punto-item-' + orden);
+    if (card) {
+        card.classList.add('border-primary');
+    }
+}
+
+function capturarGpsCliente(clienteId, nombreCliente) {
+    if (!navigator.geolocation) {
+        alert('Tu navegador no soporta geolocalización GPS.');
+        return;
+    }
+    if (confirm('¿Guardar tu posición GPS actual como la ubicación de "' + nombreCliente + '"?')) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            var formData = new FormData();
+            formData.append('latitud', pos.coords.latitude);
+            formData.append('longitud', pos.coords.longitude);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch('/clientes/guardar-gps/' + clienteId + '/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    alert('✅ ' + data.message);
+                    window.location.reload();
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            })
+            .catch(err => alert('Error al guardar ubicación GPS: ' + err));
+        }, function(err) {
+            alert('No se pudo obtener el GPS: ' + err.message);
+        }, { enableHighAccuracy: true });
+    }
+}
+</script>
+{% endblock %}
+{% endblock %}

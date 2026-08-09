@@ -111,6 +111,7 @@
                         <ul class="dropdown-menu dropdown-menu-dark bg-dark">
                             <li><a class="dropdown-item text-white" href="{% url 'cobro_list' %}"><i class="bi bi-list-ul me-2"></i>Historial de Cobros</a></li>
                             <li><a class="dropdown-item text-warning" href="{% url 'cobros_pendientes' %}"><i class="bi bi-clock-history me-2"></i>Cuentas Por Cobrar</a></li>
+                            <li><a class="dropdown-item text-info" href="{% url 'cobro_ruta_mapa' %}"><i class="bi bi-geo-alt-fill me-2"></i>Ruta GPS Cobros</a></li>
                             <li><a class="dropdown-item text-success" href="{% url 'cobro_create' %}"><i class="bi bi-plus-circle me-2"></i>Registrar Cobro</a></li>
                         </ul>
                     </li>
@@ -118,6 +119,13 @@
                     {% else %}
                     <!-- ==================== SOLO EMPLEADO ==================== -->
                     
+                    <!-- Clientes - EMPLEADO -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'cliente_list' %}">
+                            <i class="bi bi-people me-1"></i>Clientes
+                        </a>
+                    </li>
+
                     <!-- Ventas - EMPLEADO -->
                     <li class="nav-item">
                         <a class="nav-link" href="/ventas/">
@@ -133,6 +141,7 @@
                         <ul class="dropdown-menu dropdown-menu-dark bg-dark">
                             <li><a class="dropdown-item text-white" href="{% url 'cobro_list' %}"><i class="bi bi-list-ul me-2"></i>Historial de Cobros</a></li>
                             <li><a class="dropdown-item text-warning" href="{% url 'cobros_pendientes' %}"><i class="bi bi-clock-history me-2"></i>Cuentas Por Cobrar</a></li>
+                            <li><a class="dropdown-item text-info" href="{% url 'cobro_ruta_mapa' %}"><i class="bi bi-geo-alt-fill me-2"></i>Ruta GPS Cobros</a></li>
                             <li><a class="dropdown-item text-success" href="{% url 'cobro_create' %}"><i class="bi bi-plus-circle me-2"></i>Registrar Cobro</a></li>
                         </ul>
                     </li>

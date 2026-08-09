@@ -329,4 +329,118 @@ def cobros_pendientes(request):
         'ruta_nombre': ruta_nombre,
         'today': today
     })
+
+
+@requiere_login
+def cobro_ruta_mapa(request):
+    """Vista interactiva con mapa Leaflet y generador de ruta de navegación en Google Maps"""
+    from datetime import date
+    import json
+    user_id = request.session.get('user_id')
+    rol_nombre = request.session.get('rol_nombre')
+    es_admin = (rol_nombre == 'ADMIN')
+    empleado, ruta_id = _get_empleado_info(user_id)
+
+    search = request.GET.get('search', '').strip()
+    ruta_filtro = request.GET.get('ruta_id', '').strip()
+    color_filtro = request.GET.get('color', '').strip().upper()
+
+    today = date.today()
+
+    ventas_qs = Venta.objects.filter(
+        tipo='CREDITO',
+        estado='PENDIENTE'
+    ).select_related('cliente', 'ruta', 'cliente__ruta', 'usuario')
+
+    if color_filtro == 'ROJO':
+        ventas_qs = ventas_qs.filter(proximo_cobro__isnull=False, proximo_cobro__lt=today)
+    elif color_filtro == 'NARANJA':
+        ventas_qs = ventas_qs.filter(proximo_cobro=today)
+    elif color_filtro == 'VERDE':
+        ventas_qs = ventas_qs.filter(proximo_cobro__gt=today)
+
+    ventas_qs = ventas_qs.order_by(models.F('proximo_cobro').asc(nulls_last=True), '-created_at')
+
+    if not es_admin:
+        if ruta_id:
+            ventas_qs = ventas_qs.filter(models.Q(ruta_id=ruta_id) | models.Q(cliente__ruta_id=ruta_id))
+        else:
+            ventas_qs = Venta.objects.none()
+    elif ruta_filtro:
+        ventas_qs = ventas_qs.filter(models.Q(ruta_id=ruta_filtro) | models.Q(cliente__ruta_id=ruta_filtro))
+
+    if search:
+        ventas_qs = ventas_qs.filter(
+            models.Q(cliente__nombre__icontains=search) |
+            models.Q(cliente__numero_documento__icontains=search) |
+            models.Q(id__icontains=search)
+        )
+
+    puntos_mapa = []
+    total_deuda = Decimal('0')
+
+    for index, v in enumerate(ventas_qs, start=1):
+        if v.saldo > Decimal('0'):
+            total_deuda += v.saldo
+            has_gps = bool(v.cliente.latitud and v.cliente.longitud)
+            
+            estado_cobro = 'VERDE'
+            if v.proximo_cobro:
+                if v.proximo_cobro < today:
+                    estado_cobro = 'ROJO'
+                elif v.proximo_cobro == today:
+                    estado_cobro = 'NARANJA'
+
+            puntos_mapa.append({
+                'orden': index,
+                'venta_id': v.id,
+                'cliente_id': v.cliente.numero_documento,
+                'cliente_nombre': v.cliente.nombre,
+                'telefono': v.cliente.telefono or '',
+                'direccion': v.cliente.direccion or '',
+                'ruta': v.cliente.ruta.nombre if (v.cliente and v.cliente.ruta) else (v.ruta.nombre if v.ruta else 'Sin Ruta'),
+                'saldo': float(v.saldo),
+                'subtotal': float(v.subtotal),
+                'proximo_cobro': v.proximo_cobro.strftime('%d/%m/%Y') if v.proximo_cobro else 'Sin fecha',
+                'proximo_cobro_iso': v.proximo_cobro.strftime('%Y-%m-%d') if v.proximo_cobro else '',
+                'estado_cobro': estado_cobro,
+                'lat': float(v.cliente.latitud) if has_gps else None,
+                'lng': float(v.cliente.longitud) if has_gps else None,
+                'has_gps': has_gps,
+            })
+
+    # Filtrar solo puntos con GPS para trazar la ruta en Google Maps
+    puntos_con_coords = [p for p in puntos_mapa if p['has_gps']]
+    google_maps_url = ''
+    if puntos_con_coords:
+        if len(puntos_con_coords) == 1:
+            dest = f"{puntos_con_coords[0]['lat']},{puntos_con_coords[0]['lng']}"
+            google_maps_url = f"https://www.google.com/maps/dir/?api=1&destination={dest}&travelmode=driving"
+        else:
+            origin = f"{puntos_con_coords[0]['lat']},{puntos_con_coords[0]['lng']}"
+            destination = f"{puntos_con_coords[-1]['lat']},{puntos_con_coords[-1]['lng']}"
+            if len(puntos_con_coords) > 2:
+                waypoints = "|".join([f"{p['lat']},{p['lng']}" for p in puntos_con_coords[1:-1]])
+                google_maps_url = f"https://www.google.com/maps/dir/?api=1&origin={origin}&destination={destination}&waypoints={waypoints}&travelmode=driving"
+            else:
+                google_maps_url = f"https://www.google.com/maps/dir/?api=1&origin={origin}&destination={destination}&travelmode=driving"
+
+    rutas = Ruta.objects.all().order_by('nombre')
+    ruta_nombre = getattr(empleado.ruta, 'nombre', 'N/A') if (empleado and empleado.ruta) else ('Todas' if es_admin else 'Sin Ruta')
+
+    return render(request, 'cobros/ruta_mapa.html', {
+        'puntos_mapa_json': json.dumps(puntos_mapa),
+        'puntos_mapa': puntos_mapa,
+        'puntos_con_coords_count': len(puntos_con_coords),
+        'total_puntos_count': len(puntos_mapa),
+        'total_deuda': total_deuda,
+        'google_maps_url': google_maps_url,
+        'rutas': rutas,
+        'search': search,
+        'ruta_filtro': ruta_filtro,
+        'color_filtro': color_filtro,
+        'es_admin': es_admin,
+        'ruta_nombre': ruta_nombre,
+        'today': today
+    })
 

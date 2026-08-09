@@ -296,6 +296,11 @@ def venta_create_con_cliente(request):
             direccion = request.POST.get('direccion', '').strip()
             tipo_documento = request.POST.get('tipo_documento', 'CEDULA')
 
+            latitud_raw = request.POST.get('latitud', '').strip()
+            longitud_raw = request.POST.get('longitud', '').strip()
+            latitud = float(latitud_raw) if latitud_raw else None
+            longitud = float(longitud_raw) if longitud_raw else None
+
             if es_admin:
                 ruta_id = request.POST.get('ruta_id') or None
             else:
@@ -318,6 +323,8 @@ def venta_create_con_cliente(request):
                     direccion=direccion,
                     ruta_id=ruta_id,
                     tipo_documento=tipo_documento,
+                    latitud=latitud,
+                    longitud=longitud,
                 )
 
                 if request.FILES.get('foto_documento'):

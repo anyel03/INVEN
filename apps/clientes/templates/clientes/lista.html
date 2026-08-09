@@ -73,9 +73,11 @@
                         <a href="{% url 'cliente_edit' c.numero_documento %}" class="btn btn-sm btn-warning" title="Editar">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        {% if es_admin %}
                         <a href="{% url 'cliente_delete' c.numero_documento %}" class="btn btn-sm btn-danger" title="Eliminar">
                             <i class="bi bi-trash"></i>
                         </a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
