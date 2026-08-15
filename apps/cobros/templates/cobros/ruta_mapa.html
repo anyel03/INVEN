@@ -86,10 +86,11 @@
             {% endif %}
             <div class="col-md-3">
                 <select name="color" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
-                    <option value="">Todos los Estados (Colores)</option>
-                    <option value="ROJO" {% if color_filtro == 'ROJO' %}selected{% endif %}>🔴 Rojo (Vencidos)</option>
-                    <option value="NARANJA" {% if color_filtro == 'NARANJA' %}selected{% endif %}>🟠 Naranja (Cobrar Hoy)</option>
-                    <option value="VERDE" {% if color_filtro == 'VERDE' %}selected{% endif %}>🟢 Verde (Futuros)</option>
+                    <option value="" {% if not color_filtro %}selected{% endif %}>Del Día y Vencidos (Predeterminado)</option>
+                    <option value="ROJO" {% if color_filtro == 'ROJO' %}selected{% endif %}>🔴 Rojo (Solo Vencidos)</option>
+                    <option value="NARANJA" {% if color_filtro == 'NARANJA' %}selected{% endif %}>🟠 Naranja (Solo Cobrar Hoy)</option>
+                    <option value="VERDE" {% if color_filtro == 'VERDE' %}selected{% endif %}>🟢 Verde (Solo Futuros)</option>
+                    <option value="TODOS" {% if color_filtro == 'TODOS' %}selected{% endif %}>🌐 Todos (Incluir Futuros)</option>
                 </select>
             </div>
             <div class="col-md-2 d-flex gap-1">

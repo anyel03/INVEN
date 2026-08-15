@@ -357,7 +357,12 @@ def cobro_ruta_mapa(request):
     elif color_filtro == 'NARANJA':
         ventas_qs = ventas_qs.filter(proximo_cobro=today)
     elif color_filtro == 'VERDE':
-        ventas_qs = ventas_qs.filter(proximo_cobro__gt=today)
+        ventas_qs = ventas_qs.filter(models.Q(proximo_cobro__gt=today) | models.Q(proximo_cobro__isnull=True))
+    elif color_filtro == 'TODOS':
+        pass
+    else:
+        # Por defecto en la Ruta GPS: solo cobros del día (proximo_cobro == today) y vencidos (proximo_cobro < today)
+        ventas_qs = ventas_qs.filter(proximo_cobro__isnull=False, proximo_cobro__lte=today)
 
     ventas_qs = ventas_qs.order_by(models.F('proximo_cobro').asc(nulls_last=True), '-created_at')
 
