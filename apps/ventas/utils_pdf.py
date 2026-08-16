@@ -8,7 +8,9 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 def _get_logo_image(height=45):
     """Devuelve un objeto Image de ReportLab con el logo si existe el archivo."""
-    logo_path = settings.BASE_DIR / 'static' / 'logo yimmi.png'
+    logo_path = settings.BASE_DIR / 'static' / 'logo_v2.png'
+    if not os.path.exists(logo_path):
+        logo_path = settings.BASE_DIR / 'static' / 'logo yimmi.png'
     if os.path.exists(logo_path):
         try:
             return Image(str(logo_path), height=height, width=height * 1.5)
