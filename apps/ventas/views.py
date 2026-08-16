@@ -2,13 +2,17 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
+from django.core.paginator import Paginator
+from django.http import HttpResponse
 from decimal import Decimal
 from datetime import date, timedelta
 
 from .models import Venta, DetalleVenta
+from .utils_pdf import generar_pdf_venta
 from apps.clientes.models import Cliente
 from apps.inventario.models import Producto, InventarioRuta
 from apps.rutas.models import Ruta
+
 
 
 # ==================== HELPERS ====================
@@ -141,12 +145,20 @@ def venta_list(request):
     if tipo:
         ventas = ventas.filter(tipo=tipo)
 
+    paginator = Paginator(ventas, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'ventas/lista.html', {
-        'ventas': ventas,
+        'ventas': page_obj,
+        'page_obj': page_obj,
         'search': search,
+        'estado': estado,
+        'tipo': tipo,
         'es_admin': es_admin,
         'today': date.today()
     })
+
 
 
 @requiere_login
@@ -702,3 +714,14 @@ def venta_delete(request, pk):
         return redirect('venta_list')
 
     return render(request, 'ventas/confirmar_eliminar.html', {'venta': venta})
+
+
+@requiere_login
+def venta_pdf(request, pk):
+    """Generar y descargar comprobante PDF de la venta"""
+    venta = get_object_or_404(Venta, pk=pk)
+    pdf_buffer = generar_pdf_venta(venta)
+    response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="venta_{venta.id}.pdf"'
+    return response
+

@@ -1,7 +1,7 @@
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db.models import Q
+from django.core.paginator import Paginator
 
 from .models import Cliente
 from apps.rutas.models import Ruta
@@ -58,11 +58,16 @@ def cliente_list(request):
             Q(numero_documento__icontains=search)
         )
     
-    rutas = Ruta.objects.all()
+    paginator = Paginator(clientes, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'clientes/lista.html', {
-        'clientes': clientes,
-        'rutas': rutas,
+        'clientes': page_obj,
+        'page_obj': page_obj,
+        'rutas': Ruta.objects.all(),
         'search': search,
+        'ruta_id': ruta_id,
         'es_admin': es_admin
     })
 

@@ -2,6 +2,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db import transaction
+from django.core.paginator import Paginator
 
 from .models import Producto, InventarioRuta, TransferenciaInventario, DetalleTransferencia
 from apps.rutas.models import Ruta
@@ -39,10 +40,16 @@ def producto_list(request):
     if search:
         productos = productos.filter(nombre__icontains=search)
     
+    paginator = Paginator(productos, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'inventario/productos/lista.html', {
-        'productos': productos,
+        'productos': page_obj,
+        'page_obj': page_obj,
         'search': search
     })
+
 
 
 @solo_admin

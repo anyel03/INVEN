@@ -2,11 +2,14 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db import transaction, models
+from django.core.paginator import Paginator
+from django.http import HttpResponse
 from decimal import Decimal
 import json
 
 from .models import Cobro
 from apps.ventas.models import Venta
+from apps.ventas.utils_pdf import generar_pdf_cobro
 from apps.rutas.models import Ruta
 
 
@@ -66,17 +69,22 @@ def cobro_list(request):
             models.Q(id__icontains=search)
         )
 
-    cobros_list = list(cobros)
-    total_cobrado = sum((c.monto for c in cobros_list), Decimal('0'))
+    total_cobrado = sum((c.monto for c in cobros), Decimal('0'))
+
+    paginator = Paginator(cobros, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
     return render(request, 'cobros/lista.html', {
-        'cobros': cobros_list,
+        'cobros': page_obj,
+        'page_obj': page_obj,
         'total_cobrado': total_cobrado,
         'search': search,
         'es_admin': es_admin,
         'ruta_nombre': ruta_nombre,
         'empleado': empleado
     })
+
 
 
 @requiere_login
@@ -453,4 +461,15 @@ def cobro_ruta_mapa(request):
         'ruta_nombre': ruta_nombre,
         'today': today
     })
+
+
+@requiere_login
+def cobro_pdf(request, pk):
+    """Generar y descargar recibo PDF de un cobro"""
+    cobro = get_object_or_404(Cobro, pk=pk)
+    pdf_buffer = generar_pdf_cobro(cobro)
+    response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="recibo_cobro_{cobro.id}.pdf"'
+    return response
+
 
