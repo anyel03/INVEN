@@ -10,7 +10,9 @@ import json
 from .models import Cobro
 from apps.ventas.models import Venta
 from apps.ventas.utils_pdf import generar_pdf_cobro
+from apps.ventas.utils_whatsapp import generar_mensaje_cobro, generar_url_whatsapp, enviar_whatsapp_servidor
 from apps.rutas.models import Ruta
+
 
 
 # ==================== HELPERS ====================
@@ -75,6 +77,8 @@ def cobro_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    auto_whatsapp_url = request.session.pop('auto_whatsapp_url', None)
+
     return render(request, 'cobros/lista.html', {
         'cobros': page_obj,
         'page_obj': page_obj,
@@ -82,8 +86,10 @@ def cobro_list(request):
         'search': search,
         'es_admin': es_admin,
         'ruta_nombre': ruta_nombre,
-        'empleado': empleado
+        'empleado': empleado,
+        'auto_whatsapp_url': auto_whatsapp_url
     })
+
 
 
 
@@ -177,7 +183,7 @@ def cobro_create(request):
             return redirect('cobro_create')
 
         with transaction.atomic():
-            Cobro.objects.create(
+            cobro = Cobro.objects.create(
                 venta=venta_objetivo,
                 monto=monto,
                 metodo=metodo,
@@ -194,8 +200,25 @@ def cobro_create(request):
                 venta_objetivo.proximo_cobro = calcular_proximo_cobro(venta_objetivo.frecuencia_cobro)
             venta_objetivo.save()
 
-        messages.success(request, f'Cobro de ${monto} registrado exitosamente para {cliente.nombre} (Venta #{venta_objetivo.id}).')
+        # Envío y disparo de notificación por WhatsApp
+        telefono_cliente = cliente.telefono if cliente else None
+        if telefono_cliente:
+            msg = generar_mensaje_cobro(cobro)
+            enviado = enviar_whatsapp_servidor(telefono_cliente, msg)
+            wa_url = generar_url_whatsapp(telefono_cliente, msg)
+            if wa_url:
+                request.session['auto_whatsapp_url'] = wa_url
+                if enviado:
+                    messages.success(request, f'Cobro de ${monto} registrado exitosamente para {cliente.nombre}. Notificación de WhatsApp enviada.')
+                else:
+                    messages.success(request, f'Cobro de ${monto} registrado exitosamente para {cliente.nombre}. Abriendo notificación de WhatsApp...')
+            else:
+                messages.success(request, f'Cobro de ${monto} registrado exitosamente para {cliente.nombre}.')
+        else:
+            messages.success(request, f'Cobro de ${monto} registrado exitosamente para {cliente.nombre}.')
+
         return redirect('cobro_list')
+
 
     # GET request: Obtener ventas a crédito pendientes y estructurar JSON para frontend
     ventas_qs = Venta.objects.filter(

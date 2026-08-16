@@ -1,8 +1,20 @@
 import io
+import os
+from django.conf import settings
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+def _get_logo_image(height=45):
+    """Devuelve un objeto Image de ReportLab con el logo si existe el archivo."""
+    logo_path = settings.BASE_DIR / 'static' / 'logo yimmi.png'
+    if os.path.exists(logo_path):
+        try:
+            return Image(str(logo_path), height=height, width=height * 1.5)
+        except Exception:
+            return None
+    return None
 
 def generar_pdf_venta(venta):
     """Genera un comprobante de venta en formato PDF."""
@@ -14,8 +26,8 @@ def generar_pdf_venta(venta):
     title_style = ParagraphStyle(
         'TitleStyle',
         parent=styles['Heading1'],
-        fontSize=20,
-        leading=24,
+        fontSize=18,
+        leading=22,
         textColor=colors.HexColor('#0d6efd'),
         alignment=0
     )
@@ -33,10 +45,24 @@ def generar_pdf_venta(venta):
         fontName='Helvetica-Bold'
     )
 
-    # Encabezado
-    story.append(Paragraph("SISTEMA INVEN - COMPROBANTE DE VENTA", title_style))
-    story.append(Paragraph(f"Comprobante de Venta #{venta.id} | Fecha: {venta.created_at.strftime('%Y-%m-%d %H:%M')}", subtitle_style))
+    # Encabezado con Logo
+    logo_img = _get_logo_image(height=40)
+    header_text = [
+        Paragraph("SISTEMA INVEN - COMPROBANTE DE VENTA", title_style),
+        Paragraph(f"Comprobante de Venta #{venta.id} | Fecha: {venta.created_at.strftime('%Y-%m-%d %H:%M')}", subtitle_style)
+    ]
+    if logo_img:
+        header_table = Table([[logo_img, header_text]], colWidths=[80, 460])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('PADDING', (0,0), (-1,-1), 0),
+        ]))
+        story.append(header_table)
+    else:
+        story.extend(header_text)
+
     story.append(Spacer(1, 15))
+
 
     # Información del cliente y la venta
     cliente_nombre = venta.cliente.nombre if venta.cliente else "Cliente General"
@@ -128,9 +154,24 @@ def generar_pdf_cobro(cobro):
         textColor=colors.HexColor('#6c757d')
     )
 
-    story.append(Paragraph("SISTEMA INVEN - RECIBO DE COBRO", title_style))
-    story.append(Paragraph(f"Recibo #{cobro.id} | Fecha de Pago: {cobro.created_at.strftime('%Y-%m-%d %H:%M')}", subtitle_style))
+    # Encabezado con Logo
+    logo_img = _get_logo_image(height=40)
+    header_text = [
+        Paragraph("SISTEMA INVEN - RECIBO DE COBRO", title_style),
+        Paragraph(f"Recibo #{cobro.id} | Fecha de Pago: {cobro.created_at.strftime('%Y-%m-%d %H:%M')}", subtitle_style)
+    ]
+    if logo_img:
+        header_table = Table([[logo_img, header_text]], colWidths=[80, 460])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('PADDING', (0,0), (-1,-1), 0),
+        ]))
+        story.append(header_table)
+    else:
+        story.extend(header_text)
+
     story.append(Spacer(1, 15))
+
 
     venta = cobro.venta
     cliente_nombre = venta.cliente.nombre if venta.cliente else "Cliente General"

@@ -9,7 +9,9 @@ from datetime import date, timedelta
 
 from .models import Venta, DetalleVenta
 from .utils_pdf import generar_pdf_venta
+from .utils_whatsapp import generar_mensaje_venta, generar_url_whatsapp, enviar_whatsapp_servidor
 from apps.clientes.models import Cliente
+
 from apps.inventario.models import Producto, InventarioRuta
 from apps.rutas.models import Ruta
 
@@ -466,8 +468,24 @@ def venta_create_con_cliente(request):
                 else:
                     inv_ruta.save()
 
-        messages.success(request, f'Venta #{venta.id} creada correctamente')
-        return redirect('venta_list')
+        # Envío y disparo de notificación por WhatsApp
+        telefono_cliente = venta.cliente.telefono if venta.cliente else None
+        if telefono_cliente:
+            msg = generar_mensaje_venta(venta)
+            enviado = enviar_whatsapp_servidor(telefono_cliente, msg)
+            wa_url = generar_url_whatsapp(telefono_cliente, msg)
+            if wa_url:
+                request.session['auto_whatsapp_url'] = wa_url
+                if enviado:
+                    messages.success(request, f'Venta #{venta.id} creada correctamente. Notificación de WhatsApp enviada al cliente.')
+                else:
+                    messages.success(request, f'Venta #{venta.id} creada correctamente. Abriendo notificación de WhatsApp...')
+            else:
+                messages.success(request, f'Venta #{venta.id} creada correctamente.')
+        else:
+            messages.success(request, f'Venta #{venta.id} creada correctamente.')
+
+        return redirect('venta_detalle', pk=venta.id)
 
     ctx = _obtener_contexto_venta(request)
     return render(request, 'ventas/form_cliente_venta.html', ctx)
@@ -481,7 +499,20 @@ def venta_detalle(request, pk):
     )
     detalles = DetalleVenta.objects.filter(
         venta=venta).select_related('producto')
-    return render(request, 'ventas/detalle.html', {'venta': venta, 'detalles': detalles, 'today': date.today()})
+    
+    auto_whatsapp_url = request.session.pop('auto_whatsapp_url', None)
+    telefono_cliente = venta.cliente.telefono if venta.cliente else None
+    msg = generar_mensaje_venta(venta) if telefono_cliente else None
+    whatsapp_url = generar_url_whatsapp(telefono_cliente, msg) if telefono_cliente else None
+
+    return render(request, 'ventas/detalle.html', {
+        'venta': venta,
+        'detalles': detalles,
+        'today': date.today(),
+        'auto_whatsapp_url': auto_whatsapp_url,
+        'whatsapp_url': whatsapp_url
+    })
+
 
 
 @requiere_login

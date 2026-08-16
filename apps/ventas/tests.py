@@ -2,6 +2,12 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from .models import Venta, DetalleVenta
 from .utils_pdf import generar_pdf_venta
+from .utils_whatsapp import (
+    formatear_telefono_whatsapp,
+    generar_mensaje_venta,
+    generar_url_whatsapp,
+    enviar_whatsapp_servidor
+)
 from apps.clientes.models import Cliente
 from apps.rutas.models import Ruta
 from apps.inventario.models import Producto
@@ -13,6 +19,7 @@ class VentasTestCase(TestCase):
         self.cliente = Cliente.objects.create(
             numero_documento=987654321,
             nombre='Cliente Venta',
+            telefono='0991234567',
             ruta=self.ruta
         )
         self.producto = Producto.objects.create(
@@ -64,3 +71,14 @@ class VentasTestCase(TestCase):
         response = client.get(reverse('venta_pdf', kwargs={'pk': self.venta.id}))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/pdf')
+
+    def test_whatsapp_formatting(self):
+        phone_clean = formatear_telefono_whatsapp('0991234567')
+        self.assertEqual(phone_clean, '593991234567')
+        
+        msg = generar_mensaje_venta(self.venta)
+        self.assertIn('Cliente Venta', msg)
+        self.assertIn('Comprobante de Venta', msg)
+        
+        url = generar_url_whatsapp('0991234567', msg)
+        self.assertIn('https://api.whatsapp.com/send?phone=593991234567', url)

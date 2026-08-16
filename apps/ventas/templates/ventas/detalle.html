@@ -31,12 +31,25 @@
         <a href="{% url 'venta_pdf' venta.id %}" target="_blank" class="btn btn-primary me-2">
             <i class="bi bi-file-earmark-pdf me-1"></i>Descargar PDF
         </a>
+        {% if whatsapp_url %}
+        <a href="{{ whatsapp_url }}" target="_blank" class="btn btn-success me-2">
+            <i class="bi bi-whatsapp me-1"></i>WhatsApp
+        </a>
+        {% endif %}
         <a href="{% url 'venta_list' %}" class="btn btn-secondary">
             <i class="bi bi-arrow-left me-1"></i>Volver al Listado
         </a>
-
     </div>
 </div>
+
+{% if auto_whatsapp_url %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.open("{{ auto_whatsapp_url|escapejs }}", "_blank");
+    });
+</script>
+{% endif %}
+
 
 <div class="row">
     <div class="col-md-6 mb-3">

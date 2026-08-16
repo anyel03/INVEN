@@ -186,5 +186,14 @@
     </div>
     {% endif %}
 </div>
+
+{% if auto_whatsapp_url %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.open("{{ auto_whatsapp_url|escapejs }}", "_blank");
+    });
+</script>
+{% endif %}
 {% endblock %}
+
 

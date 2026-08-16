@@ -1,9 +1,11 @@
+{% load static %}
 <!doctype html>
 <html lang="es" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Sistema Inventario{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'logo yimmi.png' %}">
     
     <!-- Bootstrap CSS (Versión corregida a 5.3.3) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -28,9 +30,11 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
         <div class="container-fluid">
             <!-- Logo -->
-            <a class="navbar-brand" href="{% url 'dashboard' %}">
-                <i class="bi bi-truck me-2"></i>Sistema Inventario
+            <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
+                <img src="{% static 'logo yimmi.png' %}" alt="Logo Yimmi" height="38" class="me-2 rounded bg-white p-1 shadow-sm">
+                <span>Sistema Inventario</span>
             </a>
+
             
             <!-- Botón menú móvil -->
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
