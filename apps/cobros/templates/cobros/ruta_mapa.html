@@ -17,13 +17,16 @@
             {% endif %}
         </p>
     </div>
-    <div class="mt-2 mt-md-0 d-flex gap-2">
+    <div class="mt-2 mt-md-0 d-flex gap-2 flex-wrap">
         <a href="{% url 'cobros_pendientes' %}" class="btn btn-outline-secondary">
-            <i class="bi bi-list-check me-1"></i>Vista Listado Tabla
+            <i class="bi bi-list-check me-1"></i>Vista Tabla
         </a>
+        <button type="button" class="btn btn-warning font-weight-bold shadow-sm" onclick="optimizarPorCercania()" id="btnOptimizar" title="Reordenar la secuencia de cobro según la ubicación más cercana a tu posición actual">
+            <i class="bi bi-lightning-charge-fill me-1"></i>⚡ Optimizar por Cercanía
+        </button>
         {% if google_maps_url %}
-        <a href="{{ google_maps_url }}" target="_blank" class="btn btn-success font-weight-bold shadow-sm">
-            <i class="bi bi-compass-fill me-1"></i>🚀 Abrir Navegación en Google Maps
+        <a id="btnGoogleMaps" href="{{ google_maps_url }}" target="_blank" class="btn btn-success font-weight-bold shadow-sm">
+            <i class="bi bi-compass-fill me-1"></i>🚀 Abrir en Google Maps
         </a>
         {% else %}
         <button class="btn btn-secondary disabled" title="Registra ubicaciones GPS en clientes para habilitar navegación">
@@ -174,7 +177,7 @@
                                     <i class="bi bi-whatsapp"></i>
                                 </a>
                                 {% endif %}
-                                <a href="{% url 'cobro_create' %}" class="btn btn-sm btn-success p-1 px-2">
+                                <a href="{% url 'cobro_create' %}?cedula={{ p.cliente_id }}&venta_id={{ p.venta_id }}" class="btn btn-sm btn-success p-1 px-2">
                                     <i class="bi bi-cash me-1"></i>Cobrar
                                 </a>
                             </div>
@@ -197,15 +200,18 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-var puntosData = {{ puntos_mapa_json|safe }};
+var originalPuntosData = JSON.parse(JSON.stringify({{ puntos_mapa_json|safe }}));
+var puntosData = JSON.parse(JSON.stringify(originalPuntosData));
 var map;
+var markersGroup = null;
+var polylineRoute = null;
+var userLocationMarker = null;
 var markersMap = {};
 
 document.addEventListener('DOMContentLoaded', function() {
     var defaultLat = 4.6097;
     var defaultLng = -74.0817;
 
-    // Buscar primer punto con GPS para centrar
     var firstWithGps = puntosData.find(p => p.has_gps);
     if (firstWithGps) {
         defaultLat = firstWithGps.lat;
@@ -219,15 +225,137 @@ document.addEventListener('DOMContentLoaded', function() {
         attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
+    markersGroup = L.layerGroup().addTo(map);
+
+    renderizarMapaYLista(false);
+});
+
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    var R = 6371; // Radio de la tierra en km
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+function optimizarPorCercania() {
+    var btn = document.getElementById('btnOptimizar');
+    if (btn) btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Calculando...';
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            var userLat = pos.coords.latitude;
+            var userLng = pos.coords.longitude;
+            
+            // Añadir marcador del cobrador en el mapa
+            if (userLocationMarker) map.removeLayer(userLocationMarker);
+            var userIcon = L.divIcon({
+                className: 'user-location-icon',
+                html: `<div style="background-color: #0d6efd; color: #ffffff; font-weight: bold; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 3px solid #ffffff; box-shadow: 0 0 10px rgba(13,110,253,0.8); font-size: 16px;"><i class="bi bi-person-fill"></i></div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+            userLocationMarker = L.marker([userLat, userLng], { icon: userIcon }).addTo(map);
+            userLocationMarker.bindPopup('<b style="color:#000;">📍 Tu Ubicación Actual (Cobrador)</b>');
+
+            ejecutarAlgoritmoCercania(userLat, userLng, true);
+        }, function(err) {
+            console.log("No se pudo acceder a la geolocalización:", err.message);
+            // Usar la primera parada como origen si falla el GPS
+            var firstWithGps = puntosData.find(p => p.has_gps);
+            if (firstWithGps) {
+                ejecutarAlgoritmoCercania(firstWithGps.lat, firstWithGps.lng, false);
+            } else {
+                alert("No hay puntos con GPS para calcular la cercanía.");
+                if (btn) btn.innerHTML = '<i class="bi bi-lightning-charge-fill me-1"></i>⚡ Optimizar por Cercanía';
+            }
+        }, { enableHighAccuracy: true, timeout: 8000 });
+    } else {
+        var firstWithGps = puntosData.find(p => p.has_gps);
+        if (firstWithGps) {
+            ejecutarAlgoritmoCercania(firstWithGps.lat, firstWithGps.lng, false);
+        }
+    }
+}
+
+function ejecutarAlgoritmoCercania(startLat, startLng, desdeUbicacionActual) {
+    var unvisited = puntosData.filter(p => p.has_gps);
+    var sinGps = puntosData.filter(p => !p.has_gps);
+    
+    var route = [];
+    var currLat = startLat;
+    var currLng = startLng;
+    
+    while (unvisited.length > 0) {
+        var nearestIdx = 0;
+        var minDist = Infinity;
+        
+        for (var i = 0; i < unvisited.length; i++) {
+            var dist = haversineDistance(currLat, currLng, unvisited[i].lat, unvisited[i].lng);
+            if (dist < minDist) {
+                minDist = dist;
+                nearestIdx = i;
+            }
+        }
+        
+        var nextPunto = unvisited.splice(nearestIdx, 1)[0];
+        nextPunto.distanciaTramoKm = minDist;
+        route.push(nextPunto);
+        currLat = nextPunto.lat;
+        currLng = nextPunto.lng;
+    }
+    
+    var nuevoOrden = 1;
+    route.forEach(p => { p.orden = nuevoOrden++; });
+    sinGps.forEach(p => { p.orden = nuevoOrden++; });
+    
+    puntosData = route.concat(sinGps);
+    
+    renderizarMapaYLista(true, desdeUbicacionActual);
+
+    var btn = document.getElementById('btnOptimizar');
+    if (btn) {
+        btn.className = 'btn btn-outline-warning shadow-sm';
+        btn.onclick = restablecerOrdenOriginal;
+        btn.innerHTML = '<i class="bi bi-arrow-counterclockwise me-1"></i>↺ Orden por Fecha';
+    }
+}
+
+function restablecerOrdenOriginal() {
+    puntosData = JSON.parse(JSON.stringify(originalPuntosData));
+    if (userLocationMarker) {
+        map.removeLayer(userLocationMarker);
+        userLocationMarker = null;
+    }
+    renderizarMapaYLista(false);
+
+    var btn = document.getElementById('btnOptimizar');
+    if (btn) {
+        btn.className = 'btn btn-warning font-weight-bold shadow-sm';
+        btn.onclick = optimizarPorCercania;
+        btn.innerHTML = '<i class="bi bi-lightning-charge-fill me-1"></i>⚡ Optimizar por Cercanía';
+    }
+}
+
+function renderizarMapaYLista(esOptimizado, desdeUbicacionActual) {
+    markersGroup.clearLayers();
+    markersMap = {};
+    if (polylineRoute) {
+        map.removeLayer(polylineRoute);
+        polylineRoute = null;
+    }
+
     var latLngs = [];
 
     puntosData.forEach(function(p) {
         if (p.has_gps) {
-            var colorHex = "#198754"; // verde
+            var colorHex = "#198754";
             if (p.estado_cobro === 'ROJO') colorHex = "#dc3545";
             if (p.estado_cobro === 'NARANJA') colorHex = "#ffc107";
 
-            // Crear marcador con número
             var customIcon = L.divIcon({
                 className: 'custom-div-icon',
                 html: `<div style="background-color: ${colorHex}; color: #ffffff; font-weight: bold; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.5); font-size: 13px;">${p.orden}</div>`,
@@ -235,16 +363,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 iconAnchor: [14, 14]
             });
 
-            var marker = L.marker([p.lat, p.lng], { icon: customIcon }).addTo(map);
+            var marker = L.marker([p.lat, p.lng], { icon: customIcon }).addTo(markersGroup);
+
+            var distTexto = p.distanciaTramoKm ? `<p class="mb-1 text-primary small"><strong>Distancia aprox:</strong> ${p.distanciaTramoKm < 1 ? Math.round(p.distanciaTramoKm * 1000) + ' m' : p.distanciaTramoKm.toFixed(2) + ' km'}</p>` : '';
 
             var popupContent = `
                 <div style="color: #000; min-width: 180px;">
                     <h6 class="mb-1 fw-bold">#${p.orden} - ${p.cliente_nombre}</h6>
+                    ${distTexto}
                     <p class="mb-1 small"><strong>Saldo Pendiente:</strong> $${p.saldo.toFixed(2)}</p>
                     <p class="mb-1 small"><strong>Próximo Cobro:</strong> ${p.proximo_cobro}</p>
                     <p class="mb-2 small"><strong>Dirección:</strong> ${p.direccion || 'N/A'}</p>
                     <div class="d-flex gap-1 mt-2">
                         ${p.telefono ? `<a href="https://wa.me/${p.telefono}" target="_blank" class="btn btn-sm btn-success py-0 px-2 small">WhatsApp</a>` : ''}
+                        <a href="{% url 'cobro_create' %}?cedula=${p.cliente_id}&venta_id=${p.venta_id}" class="btn btn-sm btn-success py-0 px-2 small"><i class="bi bi-cash me-1"></i>Cobrar</a>
                         <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" class="btn btn-sm btn-primary py-0 px-2 small">GPS Google</a>
                     </div>
                 </div>
@@ -258,19 +390,125 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (latLngs.length > 0) {
         var bounds = L.latLngBounds(latLngs);
+        if (userLocationMarker) {
+            bounds.extend(userLocationMarker.getLatLng());
+        }
         map.fitBounds(bounds, { padding: [40, 40] });
 
-        // Trazar línea entre puntos
         if (latLngs.length > 1) {
-            L.polyline(latLngs, {
-                color: '#0d6efd',
-                weight: 3,
-                opacity: 0.7,
-                dashArray: '8, 8'
+            polylineRoute = L.polyline(latLngs, {
+                color: esOptimizado ? '#ffc107' : '#0d6efd',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: esOptimizado ? null : '8, 8'
             }).addTo(map);
         }
     }
-});
+
+    // Actualizar botón de Google Maps
+    var btnGoogle = document.getElementById('btnGoogleMaps');
+    if (btnGoogle) {
+        var puntosConGps = puntosData.filter(p => p.has_gps);
+        if (puntosConGps.length > 0) {
+            var googleUrl = '';
+            if (puntosConGps.length === 1) {
+                var dest = `${puntosConGps[0].lat},${puntosConGps[0].lng}`;
+                googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
+            } else {
+                var origin = `${puntosConGps[0].lat},${puntosConGps[0].lng}`;
+                var destination = `${puntosConGps[puntosConGps.length - 1].lat},${puntosConGps[puntosConGps.length - 1].lng}`;
+                if (puntosConGps.length > 2) {
+                    var waypoints = puntosConGps.slice(1, -1).map(p => `${p.lat},${p.lng}`).join('|');
+                    googleUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}&travelmode=driving`;
+                } else {
+                    googleUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+                }
+            }
+            btnGoogle.href = googleUrl;
+            btnGoogle.classList.remove('disabled');
+        }
+    }
+
+    // Actualizar HTML de la lista lateral
+    var contenedorLista = document.getElementById('listaPuntos');
+    if (contenedorLista) {
+        if (puntosData.length === 0) {
+            contenedorLista.innerHTML = `
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-check-circle fs-1 text-success d-block mb-2"></i>
+                    ¡No hay puntos de cobro pendientes para esta búsqueda!
+                </div>`;
+            return;
+        }
+
+        var html = '';
+        puntosData.forEach(function(p) {
+            var badgeColor = 'bg-success';
+            if (p.estado_cobro === 'ROJO') badgeColor = 'bg-danger';
+            if (p.estado_cobro === 'NARANJA') badgeColor = 'bg-warning text-dark';
+
+            var distBadge = '';
+            if (p.distanciaTramoKm !== undefined) {
+                var distTxt = p.distanciaTramoKm < 1 ? Math.round(p.distanciaTramoKm * 1000) + ' m' : p.distanciaTramoKm.toFixed(1) + ' km';
+                distBadge = `<span class="badge bg-primary text-white ms-1" title="Distancia aproximada"><i class="bi bi-geo-alt me-1"></i>${distTxt}</span>`;
+            }
+
+            var subBadge = '';
+            if (p.estado_cobro === 'ROJO') {
+                subBadge = `<span class="badge bg-outline-danger border border-danger text-danger py-0 px-1 small">Pasado: ${p.proximo_cobro}</span>`;
+            } else if (p.estado_cobro === 'NARANJA') {
+                subBadge = `<span class="badge bg-outline-warning border border-warning text-warning py-0 px-1 small">Cobrar Hoy</span>`;
+            } else {
+                subBadge = `<span class="badge bg-outline-success border border-success text-success py-0 px-1 small">${p.proximo_cobro}</span>`;
+            }
+
+            var gpsBadge = p.has_gps ? 
+                `<span class="badge bg-info text-dark py-0 px-1 small" title="Coordenadas configuradas"><i class="bi bi-geo-fill me-1"></i>GPS OK</span>` :
+                `<button type="button" class="btn btn-sm btn-outline-warning py-0 px-2 small ms-1" onclick="event.stopPropagation(); capturarGpsCliente('${p.cliente_id}', '${p.cliente_nombre}')" title="Guardar tu ubicación GPS actual">
+                    <i class="bi bi-crosshair me-1"></i>Fijar GPS aquí
+                 </button>`;
+
+            var telButtons = p.telefono ? `
+                <a href="tel:${p.telefono}" class="btn btn-sm btn-outline-info p-1 px-2" title="Llamar"><i class="bi bi-telephone-fill"></i></a>
+                <a href="https://wa.me/${p.telefono}" target="_blank" class="btn btn-sm btn-outline-success p-1 px-2" title="WhatsApp"><i class="bi bi-whatsapp"></i></a>
+            ` : '';
+
+            html += `
+                <div class="list-group-item bg-dark border-secondary text-white p-2 mb-2 rounded shadow-sm punto-card" 
+                     id="punto-item-${p.orden}" 
+                     style="cursor: pointer;" 
+                     onclick="focusMarker(${p.orden})">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <div>
+                            <span class="badge ${badgeColor} me-1 font-monospace">#${p.orden}</span>
+                            <strong>${p.cliente_nombre}</strong>
+                            ${distBadge}
+                            <small class="text-muted ms-1">(Cédula: ${p.cliente_id})</small>
+                        </div>
+                        <span class="badge bg-warning text-dark font-monospace">$${p.saldo.toFixed(2)}</span>
+                    </div>
+
+                    <div class="small text-muted mb-1">
+                        <i class="bi bi-geo-alt me-1"></i>${p.direccion || 'Sin dirección registrada'}
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-1 border-top border-secondary border-opacity-50">
+                        <div>
+                            ${subBadge}
+                            ${gpsBadge}
+                        </div>
+
+                        <div class="d-flex gap-1" onclick="event.stopPropagation();">
+                            ${telButtons}
+                            <a href="{% url 'cobro_create' %}?cedula=${p.cliente_id}&venta_id=${p.venta_id}" class="btn btn-sm btn-success p-1 px-2"><i class="bi bi-cash me-1"></i>Cobrar</a>
+                        </div>
+                    </div>
+                </div>`;
+        });
+
+        contenedorLista.innerHTML = html;
+    }
+}
 
 function focusMarker(orden) {
     var marker = markersMap[orden];

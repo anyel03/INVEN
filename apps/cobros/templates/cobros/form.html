@@ -31,6 +31,7 @@
                                    class="form-control bg-dark text-white border-secondary fs-5" 
                                    placeholder="Digite el número de cédula del cliente..." 
                                    list="clientesDatalist"
+                                   value="{{ cedula_param }}"
                                    autocomplete="off" 
                                    required>
                         </div>
@@ -238,6 +239,14 @@
     // Ejecutar una vez al cargar si ya tiene valor
     if (cedulaInput.value) {
         updateClienteInfo();
+        const initialVentaId = "{{ venta_id_param }}";
+        if (initialVentaId) {
+            const initialRadio = document.getElementById('venta_radio_' + initialVentaId);
+            if (initialRadio) {
+                initialRadio.checked = true;
+                initialRadio.dispatchEvent(new Event('change'));
+            }
+        }
     }
 </script>
 {% endblock %}

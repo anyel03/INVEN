@@ -235,13 +235,18 @@ def cobro_create(request):
 
     clientes_json = json.dumps(list(clientes_dict.values()))
 
+    cedula_param = request.GET.get('cedula', '').strip()
+    venta_id_param = request.GET.get('venta_id', '').strip()
+
     from datetime import date
     return render(request, 'cobros/form.html', {
         'clientes_json': clientes_json,
         'clientes_list': list(clientes_dict.values()),
         'es_admin': es_admin,
         'ruta_nombre': getattr(empleado.ruta, 'nombre', 'N/A') if (empleado and empleado.ruta) else ('Todas' if es_admin else 'Sin Ruta'),
-        'today_iso': date.today().strftime('%Y-%m-%d')
+        'today_iso': date.today().strftime('%Y-%m-%d'),
+        'cedula_param': cedula_param,
+        'venta_id_param': venta_id_param,
     })
 
 

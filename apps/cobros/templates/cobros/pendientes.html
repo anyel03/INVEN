@@ -199,7 +199,7 @@
                             {% endif %}
                         </td>
                         <td class="pe-3 text-end">
-                            <a href="{% url 'cobro_create' %}" class="btn btn-sm btn-success">
+                            <a href="{% url 'cobro_create' %}?cedula={{ v.cliente.numero_documento }}&venta_id={{ v.id }}" class="btn btn-sm btn-success">
                                 <i class="bi bi-cash me-1"></i>Cobrar
                             </a>
                             <a href="{% url 'venta_detalle' v.id %}" class="btn btn-sm btn-outline-info" title="Ver Venta">
