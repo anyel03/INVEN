@@ -1,61 +1,60 @@
-# crear_usuarios.py
-import sqlite3
 import hashlib
 import os
+import psycopg2
 
 def encrypt(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
-# Nombre de tu archivo de base de datos
-db_name = 'db.sqlite3'
+DB_CONFIG = {
+    'dbname': os.getenv('DB_NAME', 'sistemainven_db'),
+    'user': os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASSWORD', 'postgres'),
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'port': os.getenv('DB_PORT', '5432'),
+}
 
-if not os.path.exists(db_name):
-    print(f" No existe {db_name}. Primero corre: python manage.py migrate")
-else:
-    conn = sqlite3.connect(db_name)
+try:
+    conn = psycopg2.connect(**DB_CONFIG)
+    conn.set_client_encoding('UTF8')
     cursor = conn.cursor()
-    
-    # Crear rol ADMIN
-    try:
-        cursor.execute("INSERT INTO roles (nombre) VALUES ('ADMIN')")
-        print(" Rol ADMIN creado")
-    except:
-        pass
-    
-    # Crear rol EMPLEADO
-    try:
-        cursor.execute("INSERT INTO roles (nombre) VALUES ('EMPLEADO')")
-        print(" Rol EMPLEADO creado")  
-    except:
-        pass
-    
-    # Obtener IDs de roles
-    cursor.execute("SELECT id FROM roles WHERE nombre='ADMIN'")
+
+    # 1. Crear roles
+    cursor.execute("""
+        INSERT INTO roles (nombre) 
+        VALUES ('ADMIN'), ('EMPLEADO') 
+        ON CONFLICT (nombre) DO NOTHING;
+    """)
+
+    # 2. Obtener IDs
+    cursor.execute("SELECT id FROM roles WHERE nombre = 'ADMIN';")
     admin_id = cursor.fetchone()[0]
-    cursor.execute("SELECT id FROM roles WHERE nombre='EMPLEADO'")
+
+    cursor.execute("SELECT id FROM roles WHERE nombre = 'EMPLEADO';")
     emp_id = cursor.fetchone()[0]
-    
-    # Crear ADMIN
-    try:
-        cursor.execute("""
-            INSERT INTO usuarios (nombre, email, password, rol_id, activo) 
-            VALUES (?, ?, ?, ?, ?)
-        """, ('Administrador', 'admin@empresa.com', encrypt('admin123'), admin_id, 1))
-        print(" ADMIN: admin@empresa.com / admin123")
-    except:
-        print(" Admin ya existe")
-    
-    # Crear EMPLEADO
-    try:
-        cursor.execute("""
-            INSERT INTO usuarios (nombre, email, password, rol_id, activo) 
-            VALUES (?, ?, ?, ?, ?)
-        """, ('Juan Pérez', 'juan@empresa.com', encrypt('empleado123'), emp_id, 1))
-        print(" EMPLEADO: juan@empresa.com / empleado123")
-    except:
-        print(" Empleado ya existe")
-    
+
+    # 3. Insertar Usuario ADMIN
+    cursor.execute("""
+        INSERT INTO usuarios (nombre, email, password, rol_id, activo) 
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (email) DO NOTHING;
+    """, ('Administrador', 'admin@empresa.com', encrypt('admin123'), admin_id, True))
+
+    # 4. Insertar Usuario EMPLEADO
+    cursor.execute("""
+        INSERT INTO usuarios (nombre, email, password, rol_id, activo) 
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (email) DO NOTHING;
+    """, ('Juan Perez', 'juan@empresa.com', encrypt('empleado123'), emp_id, True))
+
     conn.commit()
+    cursor.close()
     conn.close()
-    
-    print("\n Usuarios creados correctamente!")
+
+    print("Proceso finalizado correctamente!")
+
+except Exception as e:
+    # Evita el fallo de decodificación al imprimir el error en la terminal
+    error_msg = str(e).encode('utf-8', errors='ignore').decode('utf-8', errors='ignore')
+    if not error_msg.strip():
+        error_msg = repr(e)
+    print("Error detectado:", error_msg)

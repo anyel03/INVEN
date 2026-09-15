@@ -48,8 +48,6 @@ def solo_admin(view_func):
     return wrapper
 
 
-# ==================== AUTH ====================
-
 def login_view(request):
     """Vista de login"""
     if request.session.get('user_id'):
