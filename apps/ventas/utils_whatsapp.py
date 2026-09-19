@@ -6,7 +6,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-def formatear_telefono_whatsapp(telefono, country_code='593'):
+def formatear_telefono_whatsapp(telefono, country_code='57'):
     """Limpia y da formato internacional al número telefónico."""
     if not telefono:
         return None
@@ -15,10 +15,9 @@ def formatear_telefono_whatsapp(telefono, country_code='593'):
     if not clean:
         return None
     
-    # Si comienza con 0 (ej. 0991234567), reemplazar el 0 inicial por el código de país
     if clean.startswith('0'):
         clean = country_code + clean[1:]
-    elif len(clean) == 9: # ej. 991234567
+    elif len(clean) == 9:
         clean = country_code + clean
         
     return clean
